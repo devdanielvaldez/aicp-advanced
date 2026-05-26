@@ -39,7 +39,7 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behaviour may be
-reported to the project maintainers at `maintainer@example.com`.
+reported to the project maintainers at `hello@daniel-valdez.com`.
 All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution
