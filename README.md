@@ -1,4 +1,3 @@
-````md
 # 🤖 AICP – AI Consensus Protocol
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -466,6 +465,3 @@ for more information.
 ## ❤️ Built for the Open-Source AI Community
 
 AICP was created to explore collaborative reasoning between local AI systems through structured debate, consensus formation, and autonomous synthesis.
-
-```
-```

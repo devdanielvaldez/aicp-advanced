@@ -13,7 +13,7 @@ Thank you for your interest in contributing! We follow the [Contributor Covenant
 ## Development Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/aicp-advanced.git
+git clone https://github.com/devdanielvaldez/aicp-advanced.git
 cd aicp-advanced
 npm install
 npm run build

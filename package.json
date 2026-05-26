@@ -5,14 +5,14 @@
   "description": "AI Consensus Protocol – Decentralised consensus engine for multi‑model debates with BFT, PSO, and streaming",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR_USERNAME/aicp-advanced.git"
+    "url": "git+https://github.com/devdanielvaldez/aicp-advanced.git"
   },
   "author": "Daniel Valdez <hello@daniel-valdez>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/aicp-advanced/issues"
+    "url": "https://github.com/devdanielvaldez/aicp-advanced/issues"
   },
-  "homepage": "https://github.com/YOUR_USERNAME/aicp-advanced#readme",
+  "homepage": "https://github.com/devdanielvaldez/aicp-advanced#readme",
   "keywords": [
     "ai",
     "consensus",
