@@ -7,6 +7,7 @@ import { printMessage, parseVote, hr } from './utils.js';
 import { buildProposalPrompt, buildArgumentPrompt, buildRebuttalPrompt, buildVotePrompt, buildSynthesisPrompt } from './prompts.js';
 import { callModelStreaming, callModelStreamingVote, callModel } from './llm-calls.js';
 import { DebateState, ModelMessage, Vote } from './types.js';
+import { chooseFocus } from './interactive.js';
 
 export async function warmupModels(
     ollama: OllamaClient,
@@ -117,7 +118,8 @@ export async function runArgumentRebuttalRounds(
     debateRounds: number,
     activeModels: string[],
     state: DebateState,
-    repManager: ReputationManager
+    repManager: ReputationManager,
+    interactive = false
 ): Promise<string[]> {
     let currentModels = [...activeModels];
     for (let round = 1; round <= debateRounds; round++) {
@@ -129,10 +131,32 @@ export async function runArgumentRebuttalRounds(
         console.log(chalk.bold.yellow(`  PHASE ${round + 1} — ${phaseLabel}`));
         console.log(chalk.bold.yellow(hr('─', 60)));
 
+        // Snapshot last messages before this round starts
         const lastMessagePerModel = new Map<string, string>();
         for (const modelId of currentModels) {
             const msgs = state.messages.filter(m => m.modelId === modelId);
             if (msgs.length) lastMessagePerModel.set(modelId, msgs[msgs.length-1].content);
+        }
+
+        // 🔹 INTERACTIVE: choose focus before the argument round (only for first round)
+        let focusModel: string | null = null;
+        if (interactive && phase === 'argument') {
+            console.log(chalk.bold.blue('\n📢 INTERACTIVE MODE – Select which answer to debate\n'));
+            const answers: { modelId: string; answer: string }[] = currentModels.map(modelId => ({
+                modelId,
+                answer: lastMessagePerModel.get(modelId) ?? state.proposals.get(modelId) ?? '',
+            }));
+            const chosen = await chooseFocus(answers, true, true);
+            if (chosen === 'all') {
+                console.log(chalk.green('  👥 Will debate ALL answers (full round)'));
+                focusModel = null;
+            } else if (chosen === 'random') {
+                console.log(chalk.green(`  🎲 Will focus on a randomly chosen answer`));
+                focusModel = null; // random already resolved inside chooseFocus
+            } else {
+                focusModel = chosen;
+                console.log(chalk.green(`  🎯 Focusing debate on answer from ${focusModel}`));
+            }
         }
 
         const roundActiveModels: string[] = [];
@@ -142,13 +166,23 @@ export async function runArgumentRebuttalRounds(
             const spinner = ora({ text: `${modelId} composing ${phase}...`, color: 'yellow' }).start();
 
             const ownLast = lastMessagePerModel.get(modelId) ?? state.proposals.get(modelId) ?? '';
-            const othersText = currentModels
-                .filter(m => m !== modelId)
+
+            let othersList = currentModels.filter(m => m !== modelId);
+            if (focusModel && focusModel !== modelId) {
+                othersList = [focusModel];
+            }
+            const othersText = othersList
                 .map(m => {
                     const last = lastMessagePerModel.get(m) ?? state.proposals.get(m) ?? '[no position]';
                     return `=== ${m} ===\n${last}`;
                 })
                 .join('\n\n');
+
+            if (othersList.length === 1 && focusModel) {
+                console.log(chalk.blue(`\n📢 ${modelId} is now responding to ${focusModel}\n`));
+            } else if (othersList.length > 0) {
+                console.log(chalk.blue(`\n📢 ${modelId} is now responding to all other models\n`));
+            }
 
             const userPrompt = phase === 'argument'
                 ? buildArgumentPrompt(prompt, ownLast, othersText)

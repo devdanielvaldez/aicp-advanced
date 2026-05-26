@@ -24,6 +24,7 @@ export async function consensusCommand(prompt: string, options: any) {
 
     const repManager = new ReputationManager();
     const debateRounds = Math.max(1, parseInt(options.rounds) || 2);
+    const interactive = options.interactive === true || options.interactive === 'true';
     const state: DebateState = {
         topic: prompt,
         messages: [],
@@ -53,7 +54,7 @@ export async function consensusCommand(prompt: string, options: any) {
         process.exit(1);
     }
 
-    activeModels = await runArgumentRebuttalRounds(ollama, prompt, debateRounds, activeModels, state, repManager);
+    activeModels = await runArgumentRebuttalRounds(ollama, prompt, debateRounds, activeModels, state, repManager, interactive);
     if (activeModels.length < 2) {
         console.log(chalk.red('\nNot enough models to vote. Using best reputation model as fallback.'));
         let best = configuredModels[0];

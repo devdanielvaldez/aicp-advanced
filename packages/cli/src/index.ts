@@ -19,8 +19,8 @@ const logo = `
 ║  ██║  ██║██║╚██████╗██║  ██║    ██████╔╝███████╗██║  ██║     ║
 ║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
 ║                                                              ║
-║         AI Consensus Protocol - Advanced Debate CLI         ║
-║                     Version 1.0.0                           ║
+║         AI Consensus Protocol - Advanced Debate CLI          ║
+║                     Version 1.0.0                            ║
 ╚══════════════════════════════════════════════════════════════╝
 `;
 
@@ -37,17 +37,17 @@ async function showSelectedModels(): Promise<void> {
 }
 
 async function mainMenu() {
-    console.clear();
     console.log(chalk.cyan(logo));
     console.log(chalk.gray('  ⚡ Lightning-fast structured debates between local LLMs\n'));
 
-    const action: any = await select({
+    const action = await select({
         message: 'What would you like to do?',
         choices: [
             { name: '📋 List installed models', value: 'list' },
             { name: '🎯 Select models for debate', value: 'select' },
             { name: '👁️  Show selected models', value: 'showSelected' },
-            { name: '💬 Start a debate (consensus chat)', value: 'debate' },
+            { name: '💬 Start a debate (normal)', value: 'debate' },
+            { name: '🎮 Start a debate (interactive – choose focus)', value: 'debateInteractive' },
             { name: '❌ Exit', value: 'exit' },
         ],
         pageSize: 10,
@@ -75,17 +75,28 @@ async function mainMenu() {
                 max: 5,
                 step: 1,
             });
-            await consensusCommand(promptText, { rounds: rounds ?? 2 });
+            await consensusCommand(promptText, { rounds: rounds ?? 2, interactive: false });
+            break;
+        case 'debateInteractive':
+            const promptTextI = await input({
+                message: 'Enter your question or topic for debate:',
+                validate: (input: string) => input.trim().length > 0 ? true : 'Prompt cannot be empty',
+            });
+            const roundsI = await number({
+                message: 'Number of debate rounds (1-5):',
+                default: 2,
+                min: 1,
+                max: 5,
+                step: 1,
+            });
+            await consensusCommand(promptTextI, { rounds: roundsI ?? 2, interactive: true });
             break;
         case 'exit':
             console.log(chalk.green('\n  Thank you for using AICP. Goodbye!\n'));
             process.exit(0);
     }
 
-    if (action !== 'exit') {
-        await input({ message: 'Press Enter to return to the main menu...' });
-        await mainMenu();
-    }
+    await mainMenu();
 }
 
 mainMenu().catch(err => {
