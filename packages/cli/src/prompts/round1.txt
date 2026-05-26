@@ -1,0 +1,3 @@
+Question: {{prompt}}
+
+Answer concisely (maximum two sentences). Do not add any extra text. Just give your answer.

@@ -1,0 +1,6 @@
+You are the selected champion. The original question was: "{{prompt}}".
+
+The debate reached a consensus with the following answer:
+"{{clusterContent}}"
+
+Based on this consensus and the discussion, produce a final, well‑formed, and concise answer for the user. Do not repeat the debate. Just give the final answer.

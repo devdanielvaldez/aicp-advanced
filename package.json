@@ -1,0 +1,38 @@
+{
+  "name": "aicp-advanced",
+  "version": "1.0.0",
+  "private": false,
+  "description": "AI Consensus Protocol – Decentralised consensus engine for multi‑model debates with BFT, PSO, and streaming",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/aicp-advanced.git"
+  },
+  "author": "Daniel Valdez <hello@daniel-valdez>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/aicp-advanced/issues"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/aicp-advanced#readme",
+  "keywords": [
+    "ai",
+    "consensus",
+    "ollama",
+    "llm",
+    "bft",
+    "swarm",
+    "debate",
+    "multi-agent"
+  ],
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "typescript": "^5.3.3"
+  }
+}

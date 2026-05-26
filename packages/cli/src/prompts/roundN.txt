@@ -1,0 +1,6 @@
+Original question: {{prompt}}
+
+Other models' answers in the previous round:
+{{othersAnswers}}
+
+Now, based on those answers, provide your final answer. Start with "ANSWER:". You may agree or disagree, but try to converge toward a consensus.

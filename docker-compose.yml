@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+  aicp-api:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ollama
+volumes:
+  ollama_data:

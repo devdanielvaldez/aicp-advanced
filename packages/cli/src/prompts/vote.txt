@@ -1,0 +1,7 @@
+Original question: "{{prompt}}"
+
+Here are the answers proposed by the models during the final discussion:
+
+{{candidates}}
+
+Your task: vote for the best answer. Respond with only the number of the answer you choose (e.g., "1"). Do not add any extra text.
