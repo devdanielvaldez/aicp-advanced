@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] – 2025-05-27
+
+### Added
+- **Real‑time graph visualization** – live D3.js graph with draggable nodes, multi‑line streaming text, and dark theme. Each model appears as a separate node with edges showing who is responding to whom.
+- **WebSocket server** for graph events – broadcasts `model_speaking`, `stream_chunk`, `vote`, `winner` in real time.
+- **Interactive debate mode** – user can select which model’s answer to focus on during the argument round (focus on a specific model, random, or all answers).
+- **Streaming client (`chatStream`)** – token‑by‑token output for proposals, arguments, rebuttals, and votes.
+- **Automatic model warmup** – measures latency and excludes models slower than 30 seconds before debate starts.
+- **Refusal detection** – models that respond with “I cannot answer” are retried and excluded if persistent.
+- **Graph viewer** includes a side log panel with phase‑coloured entries and timestamped messages.
+
+### Changed
+- **Improved graph viewer** – larger nodes when talking (radius 35), collision forces to prevent overlap, log panel widened to 450px.
+- **Lowered temperature** for voting to `0.05` to enforce strict format compliance.
+- **Increased token limits** for proposals to `300` and synthesis to `500`.
+- **Energy reputation update** now penalises latency more aggressively (`-0.1` per 10 seconds).
+- **Removed `console.clear()`** from main menu – debate output remains visible after returning.
+- **Renamed project branding** to AICP (was AICP‑Advanced).
+
+### Fixed
+- **Timeout issues** – increased HTTP timeout to 300 seconds and added retry logic for all model calls.
+- **Self‑voting** – models are instructed explicitly not to vote for themselves, and the parser discards self‑votes.
+- **Empty responses** – models that return `[No response]` are excluded from the active set.
+- **Spinner not stopping** on failure – ensured `spinner.stop()` is called before error handling.
+- **Graph server HTML not loading** – externalised HTML to a separate file and served via `fs.readFileSync`.
+
+### Removed
+- **Legacy `commander`‑based argument parsing** – replaced by interactive menu.
+- **Old voting placeholder** – replaced by full streaming vote with format enforcement.
+
 ## [1.0.0] – 2025-05-25
 
 ### Added
