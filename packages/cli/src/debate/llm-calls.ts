@@ -2,6 +2,7 @@ import { OllamaClient } from '../ollama/client.js';
 import { logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import { isRefusal } from './utils.js';
+import { emitGraphEvent } from './graph-server.js';
 
 export async function callModelStreaming(
     ollama: OllamaClient,
@@ -10,6 +11,7 @@ export async function callModelStreaming(
     userPrompt: string,
     maxTokens: number,
     temperature: number,
+    phase: string,
     onStream: (chunk: string, full: string) => void,
     maxRetries = 2
 ): Promise<string> {
@@ -21,15 +23,30 @@ export async function callModelStreaming(
             }
             messages.push({ role: 'user', content: userPrompt });
 
-            const fullContent = await ollama.chatStream(
+            let fullContent = '';
+            const wrappedOnStream = (chunk: string, full: string) => {
+                if ((global as any).__graphEnabled) {
+                    emitGraphEvent({
+                        type: 'stream_chunk',
+                        modelId,
+                        phase,
+                        chunk: chunk,
+                        fullText: full
+                    });
+                }
+                onStream(chunk, full);
+                fullContent = full;
+            };
+
+            const result = await ollama.chatStream(
                 modelId,
                 messages,
                 maxTokens,
                 temperature,
-                onStream
+                wrappedOnStream
             );
 
-            const trimmed = fullContent.trim();
+            const trimmed = result.trim();
             if (trimmed && trimmed.length >= 10 && !trimmed.includes('[ERROR]') && trimmed !== '[No response]') {
                 if (isRefusal(trimmed)) {
                     logger.warn(`[${modelId}] refused to answer (attempt ${attempt})`);

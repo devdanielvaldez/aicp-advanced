@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AICP – Live Debate Graph</title>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        background: #0a0a0a;
+        font-family: 'Segoe UI', 'Fira Code', monospace;
+        overflow: hidden;
+        color: #eee;
+    }
+
+    #graph-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 450px;
+        bottom: 0;
+        background: #0f0f1a;
+        border-right: 1px solid #2a2a3a;
+    }
+
+    svg {
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 20% 30%, #14141f, #0a0a0f);
+    }
+
+    #log-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 450px;
+        bottom: 0;
+        background: #0c0c14;
+        border-left: 1px solid #2a2a3a;
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        font-family: 'Fira Code', monospace;
+    }
+
+    #log-header {
+        padding: 12px;
+        background: #101018;
+        border-bottom: 1px solid #2a2a3a;
+        font-weight: bold;
+        letter-spacing: 1px;
+        color: #66d9ef;
+    }
+
+    #log-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .log-entry {
+        border-left: 3px solid;
+        padding-left: 8px;
+        margin-bottom: 4px;
+        font-size: 11px;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .log-entry.proposal { border-color: #4caf50; color: #c8e6c9; }
+    .log-entry.argument { border-color: #ffc107; color: #ffecb3; }
+    .log-entry.rebuttal { border-color: #ff5722; color: #ffccbc; }
+    .log-entry.vote { border-color: #9c27b0; color: #e1bee7; }
+    .log-entry.synthesis { border-color: #2196f3; color: #bbdef5; }
+    .log-entry.system { border-color: #888; color: #ccc; }
+
+    .timestamp {
+        color: #888;
+        font-size: 9px;
+        margin-right: 8px;
+    }
+
+    .node-circle {
+        stroke-width: 2;
+        filter: drop-shadow(0 0 8px rgba(0,0,0,0.7));
+        transition: all 0.25s ease;
+    }
+
+    .node-text {
+        font-size: 12px;
+        font-weight: bold;
+        fill: #fff;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        pointer-events: none;
+    }
+
+    .stream-line {
+        font-size: 10px;
+        fill: #ddd;
+        text-anchor: middle;
+        paint-order: stroke;
+        stroke: #000;
+        stroke-width: 2px;
+        pointer-events: none;
+    }
+
+    .link {
+        stroke-opacity: 0.8;
+        stroke-linecap: round;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #1a1a24;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #3a3a4a;
+        border-radius: 3px;
+    }
+</style>
+</head>
+
+<body>
+
+<div id="graph-container">
+    <svg></svg>
+</div>
+
+<div id="log-panel">
+    <div id="log-header">
+        📡 LIVE STREAM — debate in real time
+    </div>
+
+    <div id="log-content"></div>
+</div>
+
+<script>
+    const graphContainer = document.getElementById("graph-container");
+
+    let width = graphContainer.clientWidth;
+    let height = graphContainer.clientHeight;
+
+    const svg = d3.select("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    const g = svg.append("g");
+
+    // -------------------------
+    // ZOOM
+    // -------------------------
+    svg.call(
+        d3.zoom()
+            .scaleExtent([0.3, 3])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            })
+    );
+
+    // -------------------------
+    // ARROW
+    // -------------------------
+    svg.append("defs")
+        .append("marker")
+        .attr("id", "arrowhead")
+        .attr("viewBox", "0 0 10 10")
+        .attr("refX", 22)
+        .attr("refY", 5)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M 0 0 L 10 5 L 0 10 z")
+        .attr("fill", "#777");
+
+    // -------------------------
+    // GROUPS
+    // -------------------------
+    const linkGroup = g.append("g");
+    const nodeGroup = g.append("g");
+
+    // -------------------------
+    // DATA
+    // -------------------------
+    let nodes = [];
+    let links = [];
+
+    const colorMap = {
+        proposal: "#4caf50",
+        argument: "#ffc107",
+        rebuttal: "#ff5722",
+        vote: "#9c27b0",
+        synthesis: "#2196f3",
+        idle: "#555"
+    };
+
+    // -------------------------
+    // SIMULATION
+    // -------------------------
+    const simulation = d3.forceSimulation(nodes)
+
+        // Links
+        .force(
+            "link",
+            d3.forceLink(links)
+                .id(d => d.id)
+                .distance(260)
+                .strength(0.6)
+        )
+
+        // Repulsion
+        .force(
+            "charge",
+            d3.forceManyBody()
+                .strength(-1800)
+        )
+
+        // Collision
+        .force(
+            "collision",
+            d3.forceCollide()
+                .radius(d => {
+                    const lines = splitText(d.streamText || "", 26);
+                    return Math.max(90, 50 + lines.length * 18);
+                })
+                .strength(1)
+        )
+
+        // Center
+        .force(
+            "center",
+            d3.forceCenter(width / 2, height / 2)
+        )
+
+        // Extra spacing
+        .force(
+            "x",
+            d3.forceX(width / 2).strength(0.02)
+        )
+
+        .force(
+            "y",
+            d3.forceY(height / 2).strength(0.02)
+        );
+
+    simulation.on("tick", ticked);
+
+    // -------------------------
+    // LOG PANEL
+    // -------------------------
+    const logDiv = document.getElementById("log-content");
+
+    function addLog(phase, modelId, message) {
+        const entry = document.createElement("div");
+
+        entry.className = "log-entry " + phase;
+
+        const time = new Date().toLocaleTimeString();
+
+        entry.innerHTML = `
+            <span class="timestamp">[${time}]</span>
+            <strong>${modelId}</strong>
+            <span style="color:#666;">•</span>
+            ${message}
+        `;
+
+        logDiv.appendChild(entry);
+
+        entry.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest"
+        });
+    }
+
+    function addSystemLog(message) {
+        const entry = document.createElement("div");
+
+        entry.className = "log-entry system";
+
+        const time = new Date().toLocaleTimeString();
+
+        entry.innerHTML = `
+            <span class="timestamp">[${time}]</span>
+            ${message}
+        `;
+
+        logDiv.appendChild(entry);
+
+        entry.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest"
+        });
+    }
+
+    // -------------------------
+    // WEBSOCKET
+    // -------------------------
+    const ws = new WebSocket("ws://" + window.location.host);
+
+    ws.onopen = () => {
+        addSystemLog("🟢 Connected to AICP debate server");
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleEvent(data);
+    };
+
+    // -------------------------
+    // EVENTS
+    // -------------------------
+    function handleEvent(ev) {
+
+        if (ev.type === "status") {
+            addSystemLog(ev.message);
+        }
+
+        else if (ev.type === "models_selected") {
+
+            for (const id of ev.models) {
+
+                if (!nodes.find(n => n.id === id)) {
+
+                    nodes.push({
+                        id,
+                        phase: "idle",
+                        color: colorMap.idle,
+                        talking: false,
+                        streamText: ""
+                    });
+                }
+            }
+
+            render();
+
+            addSystemLog(
+                "🎯 Models in debate: " + ev.models.join(", ")
+            );
+        }
+
+        else if (ev.type === "model_speaking") {
+
+            let node = nodes.find(n => n.id === ev.modelId);
+
+            if (!node) {
+
+                node = {
+                    id: ev.modelId,
+                    phase: ev.phase,
+                    color: colorMap[ev.phase] || colorMap.idle,
+                    talking: true,
+                    streamText: ""
+                };
+
+                nodes.push(node);
+            }
+
+            node.phase = ev.phase;
+            node.color = colorMap[ev.phase] || colorMap.argument;
+            node.talking = true;
+            node.streamText = "";
+
+            // remove old outgoing links
+            links = links.filter(
+                l => (typeof l.source === "object" ? l.source.id : l.source) !== ev.modelId
+            );
+
+            for (const target of ev.targetModels) {
+
+                links.push({
+                    source: ev.modelId,
+                    target,
+                    type: ev.phase,
+                    color: colorMap[ev.phase]
+                });
+            }
+
+            render();
+
+            addLog(
+                ev.phase,
+                ev.modelId,
+                "speaking to " +
+                (
+                    ev.targetModels.length
+                        ? ev.targetModels.join(", ")
+                        : "everyone"
+                )
+            );
+        }
+
+        else if (ev.type === "stream_chunk") {
+
+            const node = nodes.find(
+                n => n.id === ev.modelId
+            );
+
+            if (!node) return;
+
+            // KEEP ONLY LAST 350 CHARS
+            node.streamText += ev.chunk;
+
+            if (node.streamText.length > 350) {
+                node.streamText =
+                    "..." +
+                    node.streamText.slice(-350);
+            }
+
+            node.talking = true;
+
+            clearTimeout(node._timeout);
+
+            node._timeout = setTimeout(() => {
+                node.talking = false;
+                render();
+            }, 1500);
+
+            render();
+        }
+
+        else if (ev.type === "vote") {
+
+            let voterNode = nodes.find(
+                n => n.id === ev.voter
+            );
+
+            if (!voterNode) {
+                voterNode = {
+                    id: ev.voter,
+                    phase: "vote",
+                    color: colorMap.vote,
+                    streamText: ""
+                };
+
+                nodes.push(voterNode);
+            }
+
+            let nomineeNode = nodes.find(
+                n => n.id === ev.nominee
+            );
+
+            if (!nomineeNode) {
+                nomineeNode = {
+                    id: ev.nominee,
+                    phase: "vote",
+                    color: colorMap.vote,
+                    streamText: ""
+                };
+
+                nodes.push(nomineeNode);
+            }
+
+            links.push({
+                source: ev.voter,
+                target: ev.nominee,
+                type: "vote",
+                color: colorMap.vote
+            });
+
+            render();
+
+            addLog(
+                "vote",
+                ev.voter,
+                `voted for ${ev.nominee} (confidence: ${ev.confidence})`
+            );
+        }
+
+        else if (ev.type === "winner") {
+
+            const winnerNode = nodes.find(
+                n => n.id === ev.winner
+            );
+
+            if (winnerNode) {
+                winnerNode.color = "#ffd700";
+            }
+
+            render();
+
+            addSystemLog(
+                "🏆 WINNER: " + ev.winner
+            );
+        }
+    }
+
+    // -------------------------
+    // TEXT WRAP
+    // -------------------------
+    function splitText(text, maxLen = 26, maxLines = 8) {
+
+        if (!text) return [];
+
+        const words = text.split(/\s+/);
+
+        const lines = [];
+
+        let line = "";
+
+        for (const word of words) {
+
+            if ((line + word).length > maxLen) {
+
+                lines.push(line.trim());
+
+                line = word + " ";
+
+            } else {
+
+                line += word + " ";
+            }
+
+            if (lines.length >= maxLines) break;
+        }
+
+        if (line.trim() && lines.length < maxLines) {
+            lines.push(line.trim());
+        }
+
+        return lines;
+    }
+
+    // -------------------------
+    // RENDER
+    // -------------------------
+    function render() {
+
+        simulation.nodes(nodes);
+
+        simulation.force("link").links(links);
+
+        simulation.alpha(0.8).restart();
+
+        // ---------------------
+        // LINKS
+        // ---------------------
+        const linkSel = linkGroup
+            .selectAll("line")
+            .data(
+                links,
+                d => {
+                    const s = typeof d.source === "object"
+                        ? d.source.id
+                        : d.source;
+
+                    const t = typeof d.target === "object"
+                        ? d.target.id
+                        : d.target;
+
+                    return s + "-" + t + "-" + d.type;
+                }
+            );
+
+        linkSel.join("line")
+            .attr("class", "link")
+            .attr("stroke", d => d.color || "#666")
+            .attr("stroke-width", d => d.type === "vote" ? 2 : 1.5)
+            .attr("stroke-dasharray", d => d.type === "vote" ? "4,4" : null)
+            .attr("marker-end", "url(#arrowhead)");
+
+        // ---------------------
+        // NODES
+        // ---------------------
+        const nodeSel = nodeGroup
+            .selectAll(".node")
+            .data(nodes, d => d.id);
+
+        const nodeEnter = nodeSel.enter()
+            .append("g")
+            .attr("class", "node")
+            .call(drag(simulation));
+
+        // Circle
+        nodeEnter.append("circle")
+            .attr("class", "node-circle");
+
+        // Title
+        nodeEnter.append("text")
+            .attr("class", "node-text");
+
+        // Stream container
+        nodeEnter.append("g")
+            .attr("class", "stream-group");
+
+        const merged = nodeEnter.merge(nodeSel);
+
+        merged.select("circle")
+            .transition()
+            .duration(200)
+            .attr("r", d => {
+
+                const lines = splitText(
+                    d.streamText || "",
+                    26
+                );
+
+                return Math.max(
+                    38,
+                    30 + lines.length * 10
+                );
+            })
+            .attr("fill", d => d.color)
+            .attr("stroke", d => d.talking ? "#fff" : "#999")
+            .attr("stroke-width", d => d.talking ? 3 : 1.5);
+
+        merged.select(".node-text")
+            .text(d => d.id)
+            .attr("y", -10);
+
+        merged.each(function(d) {
+
+            const group = d3.select(this)
+                .select(".stream-group");
+
+            const lines = splitText(
+                d.streamText || "",
+                26,
+                8
+            );
+
+            const texts = group
+                .selectAll(".stream-line")
+                .data(lines);
+
+            texts.join("text")
+                .attr("class", "stream-line")
+                .attr("x", 0)
+                .attr("y", (_, i) => 12 + (i * 12))
+                .text(t => t);
+        });
+
+        nodeSel.exit().remove();
+    }
+
+    // -------------------------
+    // TICK
+    // -------------------------
+    function ticked() {
+
+        linkGroup.selectAll("line")
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        nodeGroup.selectAll(".node")
+            .attr("transform", d => {
+
+                // prevent escaping viewport
+                d.x = Math.max(100, Math.min(width - 100, d.x));
+                d.y = Math.max(100, Math.min(height - 100, d.y));
+
+                return `translate(${d.x},${d.y})`;
+            });
+    }
+
+    // -------------------------
+    // DRAG
+    // -------------------------
+    function drag(simulation) {
+
+        function dragstarted(event) {
+
+            if (!event.active) {
+                simulation.alphaTarget(0.3).restart();
+            }
+
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+
+        function dragended(event) {
+
+            if (!event.active) {
+                simulation.alphaTarget(0);
+            }
+
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        return d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended);
+    }
+
+    // -------------------------
+    // RESIZE
+    // -------------------------
+    window.addEventListener("resize", () => {
+
+        width = graphContainer.clientWidth;
+        height = graphContainer.clientHeight;
+
+        svg
+            .attr("width", width)
+            .attr("height", height);
+
+        simulation.force(
+            "center",
+            d3.forceCenter(width / 2, height / 2)
+        );
+
+        simulation.alpha(0.5).restart();
+    });
+</script>
+
+</body>
+</html>

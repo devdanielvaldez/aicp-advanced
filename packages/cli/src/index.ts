@@ -47,7 +47,9 @@ async function mainMenu() {
             { name: '🎯 Select models for debate', value: 'select' },
             { name: '👁️  Show selected models', value: 'showSelected' },
             { name: '💬 Start a debate (normal)', value: 'debate' },
+            { name: '📊 Start a debate (normal + graph)', value: 'debateGraph' },
             { name: '🎮 Start a debate (interactive – choose focus)', value: 'debateInteractive' },
+            { name: '📊🎮 Start a debate (interactive + graph)', value: 'debateInteractiveGraph' },
             { name: '❌ Exit', value: 'exit' },
         ],
         pageSize: 10,
@@ -75,7 +77,21 @@ async function mainMenu() {
                 max: 5,
                 step: 1,
             });
-            await consensusCommand(promptText, { rounds: rounds ?? 2, interactive: false });
+            await consensusCommand(promptText, { rounds: rounds ?? 2, interactive: false, graph: false });
+            break;
+        case 'debateGraph':
+            const promptTextG = await input({
+                message: 'Enter your question or topic for debate:',
+                validate: (input: string) => input.trim().length > 0 ? true : 'Prompt cannot be empty',
+            });
+            const roundsG = await number({
+                message: 'Number of debate rounds (1-5):',
+                default: 2,
+                min: 1,
+                max: 5,
+                step: 1,
+            });
+            await consensusCommand(promptTextG, { rounds: roundsG ?? 2, interactive: false, graph: true });
             break;
         case 'debateInteractive':
             const promptTextI = await input({
@@ -89,7 +105,21 @@ async function mainMenu() {
                 max: 5,
                 step: 1,
             });
-            await consensusCommand(promptTextI, { rounds: roundsI ?? 2, interactive: true });
+            await consensusCommand(promptTextI, { rounds: roundsI ?? 2, interactive: true, graph: false });
+            break;
+        case 'debateInteractiveGraph':
+            const promptTextIG = await input({
+                message: 'Enter your question or topic for debate:',
+                validate: (input: string) => input.trim().length > 0 ? true : 'Prompt cannot be empty',
+            });
+            const roundsIG = await number({
+                message: 'Number of debate rounds (1-5):',
+                default: 2,
+                min: 1,
+                max: 5,
+                step: 1,
+            });
+            await consensusCommand(promptTextIG, { rounds: roundsIG ?? 2, interactive: true, graph: true });
             break;
         case 'exit':
             console.log(chalk.green('\n  Thank you for using AICP. Goodbye!\n'));

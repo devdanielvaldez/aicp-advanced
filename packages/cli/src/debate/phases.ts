@@ -8,6 +8,7 @@ import { buildProposalPrompt, buildArgumentPrompt, buildRebuttalPrompt, buildVot
 import { callModelStreaming, callModelStreamingVote, callModel } from './llm-calls.js';
 import { DebateState, ModelMessage, Vote } from './types.js';
 import { chooseFocus } from './interactive.js';
+import { emitGraphEvent } from './graph-server.js';
 
 export async function warmupModels(
     ollama: OllamaClient,
@@ -75,6 +76,15 @@ export async function runProposalPhase(
         let streamOutput = '';
         const spinner = ora({ text: `${modelId} drafting proposal...`, color: 'cyan' }).start();
 
+        if ((global as any).__graphEnabled) {
+            emitGraphEvent({
+                type: 'model_speaking',
+                modelId,
+                phase: 'proposal',
+                targetModels: []
+            });
+        }
+
         const onStream = (chunk: string, full: string) => {
             if (streamOutput === '') {
                 spinner.stop();
@@ -93,6 +103,7 @@ export async function runProposalPhase(
             buildProposalPrompt(prompt),
             TOKENS.proposal,
             0.3,
+            'proposal',
             onStream
         );
 
@@ -131,14 +142,12 @@ export async function runArgumentRebuttalRounds(
         console.log(chalk.bold.yellow(`  PHASE ${round + 1} — ${phaseLabel}`));
         console.log(chalk.bold.yellow(hr('─', 60)));
 
-        // Snapshot last messages before this round starts
         const lastMessagePerModel = new Map<string, string>();
         for (const modelId of currentModels) {
             const msgs = state.messages.filter(m => m.modelId === modelId);
             if (msgs.length) lastMessagePerModel.set(modelId, msgs[msgs.length-1].content);
         }
 
-        // 🔹 INTERACTIVE: choose focus before the argument round (only for first round)
         let focusModel: string | null = null;
         if (interactive && phase === 'argument') {
             console.log(chalk.bold.blue('\n📢 INTERACTIVE MODE – Select which answer to debate\n'));
@@ -152,7 +161,7 @@ export async function runArgumentRebuttalRounds(
                 focusModel = null;
             } else if (chosen === 'random') {
                 console.log(chalk.green(`  🎲 Will focus on a randomly chosen answer`));
-                focusModel = null; // random already resolved inside chooseFocus
+                focusModel = null;
             } else {
                 focusModel = chosen;
                 console.log(chalk.green(`  🎯 Focusing debate on answer from ${focusModel}`));
@@ -177,6 +186,15 @@ export async function runArgumentRebuttalRounds(
                     return `=== ${m} ===\n${last}`;
                 })
                 .join('\n\n');
+
+            if ((global as any).__graphEnabled) {
+                emitGraphEvent({
+                    type: 'model_speaking',
+                    modelId,
+                    phase: phase,
+                    targetModels: othersList
+                });
+            }
 
             if (othersList.length === 1 && focusModel) {
                 console.log(chalk.blue(`\n📢 ${modelId} is now responding to ${focusModel}\n`));
@@ -206,6 +224,7 @@ export async function runArgumentRebuttalRounds(
                 userPrompt,
                 phaseTokens,
                 0.4,
+                phase,
                 onStream
             );
 
