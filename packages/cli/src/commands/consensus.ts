@@ -6,6 +6,7 @@ import { ReputationManager } from '@aicp/core';
 import { DebateState } from '../debate/types.js';
 import { hr } from '../debate/utils.js';
 import { warmupModels, runProposalPhase, runArgumentRebuttalRounds, runVotingPhase, runSynthesisPhase } from '../debate/phases.js';
+import { startGraphServer, emitGraphEvent, closeGraphServer } from '../debate/graph-server.js';
 
 export async function consensusCommand(prompt: string, options: any) {
     const config = await loadConfig();
@@ -25,6 +26,15 @@ export async function consensusCommand(prompt: string, options: any) {
     const repManager = new ReputationManager();
     const debateRounds = Math.max(1, parseInt(options.rounds) || 2);
     const interactive = options.interactive === true || options.interactive === 'true';
+    const enableGraph = options.graph === true || options.graph === 'true';
+
+    if (enableGraph) {
+        startGraphServer(8080);
+        (global as any).__graphEnabled = true;
+        emitGraphEvent({ type: 'status', message: 'Warming up models...' });
+        emitGraphEvent({ type: 'models_selected', models: configuredModels });
+    }
+
     const state: DebateState = {
         topic: prompt,
         messages: [],
@@ -45,13 +55,23 @@ export async function consensusCommand(prompt: string, options: any) {
     let activeModels = await warmupModels(ollama, configuredModels);
     if (activeModels.length < 2) {
         console.log(chalk.red('Not enough fast models to run a debate (need at least 2).'));
+        if (enableGraph) closeGraphServer();
         process.exit(1);
+    }
+
+    if (enableGraph) {
+        emitGraphEvent({ type: 'status', message: 'Proposals phase...' });
     }
 
     activeModels = await runProposalPhase(ollama, prompt, activeModels, state, repManager);
     if (activeModels.length < 2) {
         console.log(chalk.red('\nNot enough models responded. Aborting.'));
+        if (enableGraph) closeGraphServer();
         process.exit(1);
+    }
+
+    if (enableGraph) {
+        emitGraphEvent({ type: 'status', message: 'Argument & rebuttal phases...' });
     }
 
     activeModels = await runArgumentRebuttalRounds(ollama, prompt, debateRounds, activeModels, state, repManager, interactive);
@@ -69,6 +89,7 @@ export async function consensusCommand(prompt: string, options: any) {
         console.log(chalk.bold.green(`FINAL ANSWER (fallback)`));
         console.log(chalk.bold.green(`═══════════════════════════════════════`));
         console.log(`\n${finalAnswerText}\n`);
+        if (enableGraph) closeGraphServer();
         return;
     }
 
@@ -81,7 +102,23 @@ export async function consensusCommand(prompt: string, options: any) {
         })
         .join('\n\n');
 
+    if (enableGraph) {
+        emitGraphEvent({ type: 'status', message: 'Voting phase...' });
+    }
+
     const { winner, voteTally } = await runVotingPhase(ollama, prompt, debateRounds, activeModels, state, repManager);
+
+    if (enableGraph) {
+        for (const vote of state.votes) {
+            emitGraphEvent({
+                type: 'vote',
+                voter: vote.voter,
+                nominee: vote.nominee,
+                confidence: vote.confidence,
+            });
+        }
+        emitGraphEvent({ type: 'winner', winner });
+    }
 
     await runSynthesisPhase(ollama, prompt, winner, debateRounds, activeModels, voteTally.get(winner) || 0, state, finalPositions);
 
@@ -98,5 +135,10 @@ export async function consensusCommand(prompt: string, options: any) {
         const votes = voteTally.get(m) ?? 0;
         const active = activeModels.includes(m) ? '' : chalk.gray(' (excluded)');
         console.log(`  ${m}: score=${score}  votes_received=${votes}${active}`);
+    }
+
+    if (enableGraph) {
+        setTimeout(() => closeGraphServer(), 3000);
+        delete (global as any).__graphEnabled;
     }
 }
