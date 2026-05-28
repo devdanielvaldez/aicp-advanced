@@ -8,6 +8,7 @@ import { hr } from '../debate/utils.js';
 import { warmupModels, runProposalPhase, runArgumentRebuttalRounds, runVotingPhase, runSynthesisPhase, runSelfEvaluationPhase } from '../debate/phases.js';
 import { startGraphServer, emitGraphEvent, closeGraphServer } from '../debate/graph-server.js';
 import { showResourceReport, setProcessPriority, optimizeOllamaEnv } from '../debate/resource-manager.js';
+import { retrieveContext, storeMemory } from '../debate/memory.js';
 
 export async function consensusCommand(prompt: string, options: any) {
     const config = await loadConfig();
@@ -38,6 +39,7 @@ export async function consensusCommand(prompt: string, options: any) {
     const enableGraph = options.graph === true || options.graph === 'true';
     const turboMode = options.turbo === true || options.turbo === 'true';
     const selfEval = options.selfEval === true || options.selfEval === 'true';
+    const enableMemory = options.memory === true || options.memory === 'true';
 
     if (turboMode) {
         logger.info('Turbo mode enabled – optimizing system resources...');
@@ -55,6 +57,22 @@ export async function consensusCommand(prompt: string, options: any) {
         emitGraphEvent({ type: 'models_selected', models: configuredModels });
     }
 
+    let memoryContext = '';
+    if (enableMemory) {
+        logger.info('Retrieving relevant past debates from memory...');
+        try {
+            const chunks = await retrieveContext(ollama, prompt, 3);
+            if (chunks.length > 0) {
+                memoryContext = '\n\n[Relevant information from previous debates]:\n' + chunks.join('\n');
+                logger.info(`Found ${chunks.length} relevant memory chunks.`);
+            } else {
+                logger.info('No relevant past debates found.');
+            }
+        } catch (err: any) {
+            logger.warn(`Memory retrieval failed: ${err.message}. Continuing without context.`);
+        }
+    }
+
     const state: DebateState = {
         topic: prompt,
         messages: [],
@@ -68,6 +86,7 @@ export async function consensusCommand(prompt: string, options: any) {
     console.log(chalk.bold.white('  STRUCTURED MODEL DEBATE (STREAMING)'));
     console.log(chalk.bold(hr('═', 60)));
     console.log(chalk.cyan(`  Topic: "${prompt}"`));
+    if (enableMemory && memoryContext) console.log(chalk.gray(`  Memory context: ${memoryContext.length > 80 ? memoryContext.substring(0, 80) + '…' : memoryContext}`));
     console.log(chalk.gray(`  Configured models: ${configuredModels.join(', ')}`));
     console.log(chalk.gray(`  Debate rounds: ${debateRounds}`));
     console.log(chalk.bold(hr('═', 60)) + '\n');
@@ -83,7 +102,8 @@ export async function consensusCommand(prompt: string, options: any) {
         emitGraphEvent({ type: 'status', message: 'Proposals phase...' });
     }
 
-    activeModels = await runProposalPhase(ollama, prompt, activeModels, state, repManager);
+    const augmentedPrompt = memoryContext ? `${memoryContext}\n\n---\n\n${prompt}` : prompt;
+    activeModels = await runProposalPhase(ollama, augmentedPrompt, activeModels, state, repManager);
     if (activeModels.length < 2) {
         console.log(chalk.red('\nNot enough models responded. Aborting.'));
         if (enableGraph) closeGraphServer();
@@ -142,10 +162,18 @@ export async function consensusCommand(prompt: string, options: any) {
 
     await runSynthesisPhase(ollama, prompt, winner, debateRounds, activeModels, voteTally.get(winner) || 0, state, finalPositions);
 
-    // Self‑evaluation phase (optional)
     if (selfEval) {
         const finalAnswer = state.finalAnswer;
         await runSelfEvaluationPhase(ollama, prompt, activeModels, state, finalAnswer, repManager);
+    }
+
+    if (enableMemory && state.finalAnswer) {
+        try {
+            await storeMemory(ollama, prompt, state.finalAnswer, winner);
+            logger.success('Debate stored in long-term memory.');
+        } catch (err: any) {
+            logger.warn(`Failed to store memory: ${err.message}`);
+        }
     }
 
     logger.title('DEBATE SUMMARY');
