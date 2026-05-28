@@ -16,12 +16,12 @@ const logo = `
 ║   █████╗ ██╗ ██████╗██████╗     ██████╗ ███████╗██████╗      ║
 ║  ██╔══██╗██║██╔════╝██╔══██╗    ██╔══██╗██╔════╝██╔══██╗     ║
 ║  ███████║██║██║     ██████╔╝    ██████╔╝█████╗  ██████╔╝     ║
-║  ██╔══██║██║██║     ██╔══██╗    ██╔══██╗██╔══╝  ██╔══██╗     ║
-║  ██║  ██║██║╚██████╗██║  ██║    ██████╔╝███████╗██║  ██║     ║
-║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
+║  ██╔══██║██║██║     ██╔         ██╔══██╗██╔══╝  ██╔══██╗     ║
+║  ██║  ██║██║╚██████╗██║         ██████╔╝███████╗██║  ██║     ║
+║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝         ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
 ║                                                              ║
 ║         AI Consensus Protocol - Advanced Debate CLI          ║
-║                     Version 1.0.0                            ║
+║                     Version 1.3.0                            ║
 ╚══════════════════════════════════════════════════════════════╝
 `;
 
@@ -30,6 +30,7 @@ interface DebateOptions {
     graph: boolean;
     turbo: boolean;
     selfEval: boolean;
+    memory: boolean;
 }
 
 async function showSelectedModels(): Promise<void> {
@@ -91,11 +92,17 @@ async function debateModeMenu(): Promise<DebateOptions | null> {
         ],
     });
 
+    const useMemory = await confirm({
+        message: 'Enable long‑term memory? (recalls past debates using RAG)',
+        default: false,
+    });
+
     return {
         interactive: mode === 'interactive',
         turbo: speed === 'turbo',
         graph: extras === 'graph' || extras === 'both',
         selfEval: extras === 'selfEval' || extras === 'both',
+        memory: useMemory,
     };
 }
 
