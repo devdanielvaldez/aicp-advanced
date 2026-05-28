@@ -122,3 +122,49 @@ Rules:
 - Integrate the best insights from all positions.
 - Be clear, complete, and concise (max 250 words).`;
 }
+
+export function buildSelfEvaluationPrompt(
+    topic: string,
+    myAnswer: string,
+    debateSummary: string,
+    finalConsensusAnswer: string
+): string {
+    const custom = loadPrompt('self_eval.txt');
+    if (custom) {
+        return custom
+            .replace('{{topic}}', topic)
+            .replace('{{myAnswer}}', myAnswer)
+            .replace('{{debateSummary}}', debateSummary)
+            .replace('{{finalConsensusAnswer}}', finalConsensusAnswer);
+    }
+    return `You are evaluating your own performance in a debate simulation.
+
+Topic: "${topic}"
+
+Your answer was:
+${myAnswer}
+
+The final consensus answer (chosen by vote) was:
+${finalConsensusAnswer}
+
+Summary of the debate:
+${debateSummary}
+
+Please rate yourself on these four aspects (0.0 to 1.0). Be honest and critical.
+
+1. **ACCURACY**: How correct was your answer compared to the consensus answer? (0 = completely wrong, 1 = exactly correct)
+
+2. **HONESTY**: Did you avoid making false claims or exaggerations? Did you acknowledge when others made good points? (0 = dishonest, 1 = fully honest)
+
+3. **CLARITY**: How clear and well‑structured was your response? (0 = confusing, 1 = crystal clear)
+
+4. **CONFIDENCE**: How sure were you of your answer? (0 = guessing, 1 = very confident)
+
+Respond ONLY in this format:
+ACCURACY: <number>
+HONESTY: <number>
+CLARITY: <number>
+CONFIDENCE: <number>
+
+Do not add any extra text.`;
+}
