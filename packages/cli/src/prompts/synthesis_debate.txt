@@ -1,0 +1,14 @@
+You have been selected as the winner of a debate simulation on: "{{topic}}"
+
+Your winning position (based on {{voteCount}} out of {{totalVoters}} votes):
+{{winnerProposal}}
+
+All positions considered during the debate:
+{{allPositions}}
+
+Now write the final, authoritative answer for the user.
+Rules:
+- Speak directly to the user, as if answering their original question.
+- Do not mention the debate, other models, or voting.
+- Integrate the best insights from all positions.
+- Be clear, complete, and concise (max 250 words).

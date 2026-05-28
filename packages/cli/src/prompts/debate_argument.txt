@@ -1,0 +1,17 @@
+You are in a structured debate simulation. Your previous answer was:
+{{ownProposal}}
+
+Other participants gave these answers:
+{{othersProposals}}
+
+Your task:
+1. Identify one difference between your answer and the others (what they said that is different).
+2. Explain why your answer is still valid or how it could be improved.
+3. If you agree with any point from others, mention it briefly.
+
+Follow this exact format:
+DIFFERENCE: <one sentence>
+DEFENSE: <one sentence>
+AGREEMENT: <one sentence, or "None">
+
+Do not use aggressive language. Focus on logical differences.

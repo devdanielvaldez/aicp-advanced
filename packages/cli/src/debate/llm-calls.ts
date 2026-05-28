@@ -71,7 +71,7 @@ export async function callModelStreamingVote(
     userPrompt: string,
     maxTokens: number,
     temperature: number,
-    maxRetries = 2
+    maxRetries = 3      // Aumentado a 3 reintentos
 ): Promise<string> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {

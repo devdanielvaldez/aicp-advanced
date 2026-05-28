@@ -1,0 +1,15 @@
+You are continuing the debate simulation. Your previous argument was:
+{{ownArgument}}
+
+The opposing arguments were:
+{{opponentArguments}}
+
+Your task:
+- Address the strongest point from the opposing side.
+- Then restate your final position concisely.
+
+Use this format:
+COUNTER: <one sentence addressing the opposing point>
+FINAL POSITION: <one sentence with your confirmed answer>
+
+Be respectful and factual.

@@ -7,6 +7,7 @@ import { DebateState } from '../debate/types.js';
 import { hr } from '../debate/utils.js';
 import { warmupModels, runProposalPhase, runArgumentRebuttalRounds, runVotingPhase, runSynthesisPhase } from '../debate/phases.js';
 import { startGraphServer, emitGraphEvent, closeGraphServer } from '../debate/graph-server.js';
+import { showResourceReport, setProcessPriority, optimizeOllamaEnv } from '../debate/resource-manager.js';
 
 export async function consensusCommand(prompt: string, options: any) {
     const config = await loadConfig();
@@ -24,9 +25,27 @@ export async function consensusCommand(prompt: string, options: any) {
     }
 
     const repManager = new ReputationManager();
+    
+    for (const modelId of configuredModels) {
+        const currentScore = repManager.getScore(modelId);
+        if (currentScore < 0.01) {
+            repManager.update(modelId, { accuracyDelta: 0, honestyDelta: 0, energyDelta: 0 });
+        }
+    }
+
     const debateRounds = Math.max(1, parseInt(options.rounds) || 2);
     const interactive = options.interactive === true || options.interactive === 'true';
     const enableGraph = options.graph === true || options.graph === 'true';
+    const turboMode = options.turbo === true || options.turbo === 'true';
+
+    if (turboMode) {
+        logger.info('Turbo mode enabled – optimizing system resources...');
+        await showResourceReport();
+        optimizeOllamaEnv();
+        setProcessPriority();
+    } else {
+        await showResourceReport();
+    }
 
     if (enableGraph) {
         startGraphServer(8080);

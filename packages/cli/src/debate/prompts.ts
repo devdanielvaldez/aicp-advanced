@@ -3,50 +3,71 @@ import { loadPrompt } from './utils.js';
 export function buildProposalPrompt(topic: string): string {
     const custom = loadPrompt('debate_proposal.txt');
     if (custom) return custom.replace('{{topic}}', topic);
-    return `You are an expert analyst in a structured debate.
+    return `You are participating in a simulated debate exercise. Your task is to answer the following question as accurately and helpfully as possible.
 
-TOPIC: ${topic}
+Topic: ${topic}
 
-Reply in this exact format (nothing else):
-REASONING: <2 sentences max explaining your logic>
-ANSWER: <your final position, 2 sentences max>`;
+Instructions:
+- Provide your reasoning in 1-2 sentences.
+- Then state your final answer clearly, starting with "ANSWER:".
+
+Example format:
+REASONING: <your logic>
+ANSWER: <your concise answer>
+
+Now respond.`;
 }
 
 export function buildArgumentPrompt(topic: string, ownProposal: string, othersProposals: string): string {
     const custom = loadPrompt('debate_argument.txt');
-    if (custom) return custom.replace('{{topic}}', topic).replace('{{ownProposal}}', ownProposal).replace('{{othersProposals}}', othersProposals);
-    return `Debate topic: "${topic}"
-
-YOUR POSITION:
+    if (custom) {
+        return custom
+            .replace('{{topic}}', topic)
+            .replace('{{ownProposal}}', ownProposal)
+            .replace('{{othersProposals}}', othersProposals);
+    }
+    return `You are in a structured debate simulation. Your previous answer was:
 ${ownProposal}
 
-OTHERS SAID:
+Other participants gave these answers:
 ${othersProposals}
 
-Reply in this exact format:
-CRITIQUE: <one flaw in the opposing positions>
-DEFENSE: <why your answer is better, one sentence>
-CONCESSION: <one point from others you agree with, or "none">
+Your task:
+1. Identify one difference between your answer and the others (what they said that is different).
+2. Explain why your answer is still valid or how it could be improved.
+3. If you agree with any point from others, mention it briefly.
 
-Max 150 words total.`;
+Follow this exact format:
+DIFFERENCE: <one sentence>
+DEFENSE: <one sentence>
+AGREEMENT: <one sentence, or "None">
+
+Do not use aggressive language. Focus on logical differences.`;
 }
 
 export function buildRebuttalPrompt(topic: string, ownArgument: string, opponentArguments: string): string {
     const custom = loadPrompt('debate_rebuttal.txt');
-    if (custom) return custom.replace('{{topic}}', topic).replace('{{ownArgument}}', ownArgument).replace('{{opponentArguments}}', opponentArguments);
-    return `Debate topic: "${topic}"
-
-YOUR ARGUMENT:
+    if (custom) {
+        return custom
+            .replace('{{topic}}', topic)
+            .replace('{{ownArgument}}', ownArgument)
+            .replace('{{opponentArguments}}', opponentArguments);
+    }
+    return `You are continuing the debate simulation. Your previous argument was:
 ${ownArgument}
 
-OPPONENTS ARGUED:
+The opposing arguments were:
 ${opponentArguments}
 
-Reply in this exact format:
-REBUTTAL: <counter the strongest opposing point, one sentence>
-FINAL POSITION: <your confirmed or updated answer, one sentence>
+Your task:
+- Address the strongest point from the opposing side.
+- Then restate your final position concisely.
 
-Max 100 words total.`;
+Use this format:
+COUNTER: <one sentence addressing the opposing point>
+FINAL POSITION: <one sentence with your confirmed answer>
+
+Be respectful and factual.`;
 }
 
 export function buildVotePrompt(topic: string, allProposals: string, candidates: string[], selfId: string): string {
@@ -59,37 +80,45 @@ export function buildVotePrompt(topic: string, allProposals: string, candidates:
             .replace('{{selfId}}', selfId);
     }
     const voteCandidates = candidates.filter(c => c !== selfId).join(', ');
-    return `Debate on: "${topic}"
+    return `You are an impartial judge in a debate simulation. The topic is: "${topic}"
 
-FINAL POSITIONS:
+Final positions from all participants:
 ${allProposals}
 
-You are ${selfId}. You MUST vote for another model.
-You CANNOT vote for yourself. If you vote for yourself, your vote will be discarded.
+You are ${selfId}. You must vote for the best answer among the other participants.
 Available candidates (do NOT pick yourself): ${voteCandidates}
 
-Respond ONLY in this EXACT format:
+Select the model whose answer is most accurate, well‑reasoned, and useful.
+Respond ONLY with this format:
 VOTE: <model_id>
 REASON: <one sentence>
 CONFIDENCE: <0.0 to 1.0>
 
-Remember: do not vote for ${selfId}.`;
+Remember: do not vote for yourself.`;
 }
 
 export function buildSynthesisPrompt(topic: string, winnerProposal: string, allPositions: string, voteCount: number, totalVoters: number): string {
     const custom = loadPrompt('synthesis_debate.txt');
-    if (custom) return custom.replace('{{topic}}', topic).replace('{{winnerProposal}}', winnerProposal).replace('{{allPositions}}', allPositions).replace('{{voteCount}}', String(voteCount)).replace('{{totalVoters}}', String(totalVoters));
-    return `You won a debate (${voteCount}/${totalVoters} votes) on: "${topic}"
+    if (custom) {
+        return custom
+            .replace('{{topic}}', topic)
+            .replace('{{winnerProposal}}', winnerProposal)
+            .replace('{{allPositions}}', allPositions)
+            .replace('{{voteCount}}', String(voteCount))
+            .replace('{{totalVoters}}', String(totalVoters));
+    }
+    return `You have been selected as the winner of a debate simulation on: "${topic}"
 
-YOUR WINNING POSITION:
+Your winning position (based on ${voteCount} out of ${totalVoters} votes):
 ${winnerProposal}
 
-ALL POSITIONS FROM THE DEBATE:
+All positions considered during the debate:
 ${allPositions}
 
-Write the final answer for the user. Rules:
-- Speak directly to the user, do NOT mention the debate or other models
-- Integrate the best insights from all positions
-- Be clear, complete, and concise
-- Max 250 words.`;
+Now write the final, authoritative answer for the user.
+Rules:
+- Speak directly to the user, as if answering their original question.
+- Do not mention the debate, other models, or voting.
+- Integrate the best insights from all positions.
+- Be clear, complete, and concise (max 250 words).`;
 }
