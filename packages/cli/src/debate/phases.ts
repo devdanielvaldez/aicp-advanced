@@ -279,47 +279,71 @@ export async function runVotingPhase(
         if (candidateModels.length === 0) continue;
 
         console.log(chalk.white(`\n${voterModel} is voting...`));
-        const rawVote = await callModelStreamingVote(
-            ollama,
-            voterModel,
-            'You are an objective judge. Follow the format exactly. Do not vote for yourself.',
-            buildVotePrompt(prompt, finalPositions, activeModels, voterModel),
-            TOKENS.vote,
-            0.05
-        );
 
-        if (rawVote === '[NO_RESPONSE]') {
-            console.log(chalk.red(`  ✗ ${voterModel} failed to vote – excluded from voting`));
-            continue;
-        }
+        let rawVote = '[NO_RESPONSE]';
+        let success = false;
 
-        const parsed = parseVote(rawVote, candidateModels, voterModel);
-        if (!parsed) {
-            if (rawVote.toLowerCase().includes(voterModel.toLowerCase())) {
-                console.log(chalk.red(`  ✗ ${voterModel} attempted to vote for itself – vote discarded.`));
-            } else {
-                console.log(chalk.red(`  ✗ ${voterModel} vote unparseable: "${rawVote.substring(0, 80)}"`));
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            rawVote = await callModelStreamingVote(
+                ollama,
+                voterModel,
+                'You are an objective judge. Follow the format exactly. Do not vote for yourself.',
+                buildVotePrompt(prompt, finalPositions, activeModels, voterModel),
+                TOKENS.vote,
+                0.01,
+                1
+            );
+            const parsed = parseVote(rawVote, candidateModels, voterModel);
+            if (parsed) {
+                success = true;
+                const vote: Vote = { voter: voterModel, ...parsed };
+                state.votes.push(vote);
+                voteTally.set(vote.nominee, (voteTally.get(vote.nominee) ?? 0) + 1);
+                state.messages.push({
+                    modelId: voterModel,
+                    role: 'vote',
+                    content: `Votes for: ${vote.nominee}\nReason: ${vote.reason}\nConfidence: ${vote.confidence}`,
+                    round: debateRounds + 1,
+                    timestamp: Date.now(),
+                });
+                console.log(
+                    chalk.magenta(`  ${voterModel}`) +
+                    chalk.white(' → ') +
+                    chalk.bold.green(vote.nominee) +
+                    chalk.gray(` (confidence: ${vote.confidence.toFixed(2)})`) +
+                    chalk.gray(`\n    "${vote.reason.substring(0, 120)}"`)
+                );
+                break;
             }
-            continue;
+            console.log(chalk.yellow(`  Attempt ${attempt}/3 failed for ${voterModel}, retrying...`));
         }
 
-        const vote: Vote = { voter: voterModel, ...parsed };
-        state.votes.push(vote);
-        voteTally.set(vote.nominee, (voteTally.get(vote.nominee) ?? 0) + 1);
-        state.messages.push({
-            modelId: voterModel,
-            role: 'vote',
-            content: `Votes for: ${vote.nominee}\nReason: ${vote.reason}\nConfidence: ${vote.confidence}`,
-            round: debateRounds + 1,
-            timestamp: Date.now(),
-        });
-        console.log(
-            chalk.magenta(`  ${voterModel}`) +
-            chalk.white(' → ') +
-            chalk.bold.green(vote.nominee) +
-            chalk.gray(` (confidence: ${vote.confidence.toFixed(2)})`) +
-            chalk.gray(`\n    "${vote.reason.substring(0, 120)}"`)
-        );
+        if (!success) {
+            const randomIndex = Math.floor(Math.random() * candidateModels.length);
+            const fallbackNominee = candidateModels[randomIndex];
+            console.log(chalk.yellow(`  ⚠ ${voterModel} failed to vote after retries. Assigning random vote to ${fallbackNominee}.`));
+            const fallbackVote: Vote = {
+                voter: voterModel,
+                nominee: fallbackNominee,
+                reason: '[Fallback due to parsing failure]',
+                confidence: 0.0,
+            };
+            state.votes.push(fallbackVote);
+            voteTally.set(fallbackNominee, (voteTally.get(fallbackNominee) ?? 0) + 1);
+            state.messages.push({
+                modelId: voterModel,
+                role: 'vote',
+                content: `Votes for: ${fallbackNominee}\nReason: Fallback\nConfidence: 0.0`,
+                round: debateRounds + 1,
+                timestamp: Date.now(),
+            });
+            console.log(
+                chalk.magenta(`  ${voterModel}`) +
+                chalk.white(' → ') +
+                chalk.bold.green(fallbackNominee) +
+                chalk.gray(` (fallback random vote)`)
+            );
+        }
     }
 
     console.log(chalk.bold.magenta('\n  VOTE RESULTS:'));
