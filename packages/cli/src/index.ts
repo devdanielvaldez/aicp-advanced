@@ -8,6 +8,7 @@ import confirm from '@inquirer/confirm';
 import { listModelsCommand } from './commands/list.js';
 import { selectModelsCommand } from './commands/select.js';
 import { consensusCommand } from './commands/consensus.js';
+import { nodeCommand } from './commands/node.js';
 import { loadConfig } from './config/manager.js';
 
 const logo = `
@@ -16,9 +17,9 @@ const logo = `
 ║   █████╗ ██╗ ██████╗██████╗     ██████╗ ███████╗██████╗      ║
 ║  ██╔══██╗██║██╔════╝██╔══██╗    ██╔══██╗██╔════╝██╔══██╗     ║
 ║  ███████║██║██║     ██████╔╝    ██████╔╝█████╗  ██████╔╝     ║
-║  ██╔══██║██║██║     ██╔         ██╔══██╗██╔══╝  ██╔══██╗     ║
-║  ██║  ██║██║╚██████╗██║         ██████╔╝███████╗██║  ██║     ║
-║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝         ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
+║  ██╔══██║██║██║     ██╔══██╗    ██╔══██╗██╔══╝  ██╔══██╗     ║
+║  ██║  ██║██║╚██████╗██║  ██║    ██████╔╝███████╗██║  ██║     ║
+║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
 ║                                                              ║
 ║         AI Consensus Protocol - Advanced Debate CLI          ║
 ║                     Version 1.3.0                            ║
@@ -143,6 +144,7 @@ async function mainMenu(): Promise<void> {
         choices: [
             { name: '💬  Start a debate', value: 'debate' },
             { name: '🤖  Manage models', value: 'models' },
+            { name: '🌐  P2P Network – Decentralized debates', value: 'p2p' },
             { name: '❌  Exit', value: 'exit' },
         ],
     });
@@ -158,6 +160,9 @@ async function mainMenu(): Promise<void> {
         }
         case 'models':
             await modelsMenu();
+            break;
+        case 'p2p':
+            await nodeCommand();
             break;
         case 'exit':
             console.log(chalk.green('\n  Thank you for using AICP. Goodbye!\n'));

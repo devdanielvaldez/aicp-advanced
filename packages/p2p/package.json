@@ -1,0 +1,34 @@
+{
+  "name": "@aicp/p2p",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@libp2p/circuit-relay-v2": "^1.1.5",
+    "@libp2p/crypto": "^5.1.18",
+    "@libp2p/kad-dht": "^12.1.5",
+    "@libp2p/keychain": "^4.0.0",
+    "@libp2p/mdns": "^10.1.5",
+    "@libp2p/peer-id-factory": "^4.2.4",
+    "@libp2p/plaintext": "^1.1.6",
+    "@libp2p/pubsub": "^10.1.18",
+    "@libp2p/tcp": "^9.1.6",
+    "@libp2p/tls": "^1.1.5",
+    "@libp2p/websockets": "^8.2.0",
+    "@multiformats/multiaddr": "^13.0.3",
+    "libp2p": "^1.9.4",
+    "multiformats": "^12.0.0",
+    "uint8arrays": "^6.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.41",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.22.3",
+    "typescript": "^5.9.3"
+  }
+}

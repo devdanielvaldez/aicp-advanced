@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@aicp/core": "^1.0.0",
+    "@aicp/p2p": "^1.0.0",
     "@inquirer/input": "^5.1.0",
     "@inquirer/number": "^4.1.0",
     "@inquirer/prompts": "^8.5.0",
