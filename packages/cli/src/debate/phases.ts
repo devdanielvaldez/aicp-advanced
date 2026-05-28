@@ -4,7 +4,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { TOKENS, SLOW_MODEL_THRESHOLD_MS } from './config.js';
 import { printMessage, parseVote, hr } from './utils.js';
-import { buildProposalPrompt, buildArgumentPrompt, buildRebuttalPrompt, buildVotePrompt, buildSynthesisPrompt } from './prompts.js';
+import { buildProposalPrompt, buildArgumentPrompt, buildRebuttalPrompt, buildVotePrompt, buildSynthesisPrompt, buildSelfEvaluationPrompt } from './prompts.js';
 import { callModelStreaming, callModelStreamingVote, callModel } from './llm-calls.js';
 import { DebateState, ModelMessage, Vote } from './types.js';
 import { chooseFocus } from './interactive.js';
@@ -432,4 +432,69 @@ export async function runSynthesisPhase(
     console.log(chalk.bold.green(hr('═', 60) + '\n'));
 
     return finalAnswerText;
+}
+
+export async function runSelfEvaluationPhase(
+    ollama: OllamaClient,
+    prompt: string,
+    activeModels: string[],
+    state: DebateState,
+    finalAnswer: string,
+    repManager: ReputationManager
+): Promise<void> {
+    console.log(chalk.bold.blue('\n' + hr('─', 60)));
+    console.log(chalk.bold.blue('  PHASE — SELF EVALUATION'));
+    console.log(chalk.bold.blue(hr('─', 60)));
+
+    const debateSummaryLines: string[] = [];
+    for (const modelId of activeModels) {
+        const msgs = state.messages.filter(m => m.modelId === modelId);
+        if (msgs.length) {
+            const lastMsg = msgs[msgs.length-1];
+            debateSummaryLines.push(`[${modelId}]: ${lastMsg.content.substring(0, 200)}`);
+        }
+    }
+    const debateSummary = debateSummaryLines.join('\n');
+
+    for (const modelId of activeModels) {
+        const myAnswer = state.proposals.get(modelId) ?? state.messages.filter(m => m.modelId === modelId).pop()?.content ?? '[no answer]';
+        const evalPrompt = buildSelfEvaluationPrompt(prompt, myAnswer, debateSummary, finalAnswer);
+
+        const spinner = ora({ text: `${modelId} evaluating itself...`, color: 'cyan' }).start();
+        const start = Date.now();
+        const rawEval = await callModel(
+            ollama,
+            modelId,
+            'You are a strict but fair evaluator. Output only numbers in the required format.',
+            evalPrompt,
+            150,
+            0.2,
+            2
+        );
+        const latency = Date.now() - start;
+        spinner.stop();
+
+        const accuracyMatch = rawEval.match(/ACCURACY:\s*([\d.]+)/i);
+        const honestyMatch = rawEval.match(/HONESTY:\s*([\d.]+)/i);
+        const clarityMatch = rawEval.match(/CLARITY:\s*([\d.]+)/i);
+        const confidenceMatch = rawEval.match(/CONFIDENCE:\s*([\d.]+)/i);
+
+        const accuracy = accuracyMatch ? Math.min(1, Math.max(0, parseFloat(accuracyMatch[1]))) : 0.5;
+        const honesty = honestyMatch ? Math.min(1, Math.max(0, parseFloat(honestyMatch[1]))) : 0.5;
+        const clarity = clarityMatch ? Math.min(1, Math.max(0, parseFloat(clarityMatch[1]))) : 0.5;
+        const selfConfidence = confidenceMatch ? Math.min(1, Math.max(0, parseFloat(confidenceMatch[1]))) : 0.5;
+
+        const accuracyDelta = (accuracy - 0.5) * 0.2;
+        const honestyDelta = (honesty - 0.5) * 0.15;
+        const clarityDelta = (clarity - 0.5) * 0.05;
+        repManager.update(modelId, {
+            accuracyDelta: accuracyDelta,
+            honestyDelta: honestyDelta + clarityDelta,
+            energyDelta: 0
+        });
+
+        console.log(chalk.green(`  ✅ ${modelId} self-evaluation:`));
+        console.log(chalk.gray(`     Accuracy: ${accuracy.toFixed(2)} | Honesty: ${honesty.toFixed(2)} | Clarity: ${clarity.toFixed(2)} | Confidence: ${selfConfidence.toFixed(2)}`));
+        console.log(chalk.gray(`     Reputation update: +${(accuracyDelta + honestyDelta + clarityDelta).toFixed(3)}`));
+    }
 }

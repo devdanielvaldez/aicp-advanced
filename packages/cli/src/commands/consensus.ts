@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { ReputationManager } from '@aicp/core';
 import { DebateState } from '../debate/types.js';
 import { hr } from '../debate/utils.js';
-import { warmupModels, runProposalPhase, runArgumentRebuttalRounds, runVotingPhase, runSynthesisPhase } from '../debate/phases.js';
+import { warmupModels, runProposalPhase, runArgumentRebuttalRounds, runVotingPhase, runSynthesisPhase, runSelfEvaluationPhase } from '../debate/phases.js';
 import { startGraphServer, emitGraphEvent, closeGraphServer } from '../debate/graph-server.js';
 import { showResourceReport, setProcessPriority, optimizeOllamaEnv } from '../debate/resource-manager.js';
 
@@ -37,6 +37,7 @@ export async function consensusCommand(prompt: string, options: any) {
     const interactive = options.interactive === true || options.interactive === 'true';
     const enableGraph = options.graph === true || options.graph === 'true';
     const turboMode = options.turbo === true || options.turbo === 'true';
+    const selfEval = options.selfEval === true || options.selfEval === 'true';
 
     if (turboMode) {
         logger.info('Turbo mode enabled – optimizing system resources...');
@@ -140,6 +141,12 @@ export async function consensusCommand(prompt: string, options: any) {
     }
 
     await runSynthesisPhase(ollama, prompt, winner, debateRounds, activeModels, voteTally.get(winner) || 0, state, finalPositions);
+
+    // Self‑evaluation phase (optional)
+    if (selfEval) {
+        const finalAnswer = state.finalAnswer;
+        await runSelfEvaluationPhase(ollama, prompt, activeModels, state, finalAnswer, repManager);
+    }
 
     logger.title('DEBATE SUMMARY');
     console.log(chalk.gray(`  Messages exchanged : ${state.messages.length}`));
