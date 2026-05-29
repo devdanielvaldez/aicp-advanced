@@ -2,10 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../core" }]
+  "references": [{ "path": "../cli" }, { "path": "../core" }]
 }
