@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+export { consensusCommand } from './commands/consensus.js';
+export { OllamaClient } from './ollama/client.js';
+export { loadConfig, saveConfig } from './config/manager.js';
+export { listModelsCommand } from './commands/list.js';
+export { selectModelsCommand } from './commands/select.js';
+
 import chalk from 'chalk';
 import select from '@inquirer/select';
 import input from '@inquirer/input';
