@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger.js';
-import { createPool } from '../../pools/manager.js';
+import { createPool, updatePool } from '../../pools/manager.js';
+import { regeneratePoolSystemPrompt } from '../../pools/prompt-generator.js';
 import input from '@inquirer/input';
 import { checkbox } from '@inquirer/prompts';
 import { OllamaClient } from '../../ollama/client.js';
@@ -38,8 +39,11 @@ export async function createPoolCommand() {
 
   try {
     const pool = await createPool(name.trim(), description.trim(), selectedModels);
-    logger.success(`Pool "${pool.name}" created.`);
-    // TODO: system prompt generation will be added in Module 3
+    logger.info('Generating system prompt...');
+    const systemPrompt = await regeneratePoolSystemPrompt(client, pool);
+    pool.systemPrompt = systemPrompt;
+    await updatePool(pool);
+    logger.success(`Pool "${pool.name}" created with system prompt.`);
   } catch (err: any) {
     logger.error(err.message);
   }

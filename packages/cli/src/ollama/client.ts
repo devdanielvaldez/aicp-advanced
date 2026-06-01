@@ -31,19 +31,23 @@ export class OllamaClient {
 
   /**
    * Non‑streaming chat – returns the complete response after generation.
-   * Still uses /api/chat (non‑streaming) for simplicity in voting / synthesis.
    */
   async chat(
     model: string,
     messages: ChatMessage[],
     maxTokens = 1000,
-    temperature = 0.3
+    temperature = 0.3,
+    numCtx = 65536
   ): Promise<{ content: string; confidence?: number }> {
     const res = await this.api.post('/api/chat', {
       model,
       messages,
       stream: false,
-      options: { num_predict: maxTokens, temperature },
+      options: {
+        num_predict: maxTokens,
+        temperature,
+        num_ctx: numCtx,
+      },
     });
     let content = res.data.message?.content?.trim() || '[No response]';
     let confidence: number | undefined;
@@ -64,7 +68,8 @@ export class OllamaClient {
     messages: ChatMessage[],
     maxTokens: number,
     temperature: number,
-    onChunk: StreamCallback
+    onChunk: StreamCallback,
+    numCtx = 65536
   ): Promise<string> {
     const res = await this.api.post(
       '/api/chat',
@@ -72,7 +77,11 @@ export class OllamaClient {
         model,
         messages,
         stream: true,
-        options: { num_predict: maxTokens, temperature },
+        options: {
+          num_predict: maxTokens,
+          temperature,
+          num_ctx: numCtx,
+        },
       },
       { responseType: 'stream' }
     );
@@ -101,6 +110,7 @@ export class OllamaClient {
               resolve(fullContent);
             }
           } catch {
+            // ignore JSON parse errors (incomplete lines)
           }
         }
       });

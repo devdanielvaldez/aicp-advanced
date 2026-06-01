@@ -1,15 +1,28 @@
 import { logger } from '../../utils/logger.js';
-import { deletePool, getPool } from '../../pools/manager.js';
+import { deletePool, getPool, listPools } from '../../pools/manager.js';
+import select from '@inquirer/select';
 import confirm from '@inquirer/confirm';
 
-export async function deletePoolCommand(name: string) {
-  const pool = await getPool(name);
-  if (!pool) {
-    logger.error(`Pool "${name}" not found`);
+export async function deletePoolCommand() {
+  const pools = await listPools();
+  if (pools.length === 0) {
+    logger.error('No pools available.');
     return;
   }
-  const ok = await confirm({ message: `Delete pool "${name}"?`, default: false });
+
+  const poolName = await select({
+    message: 'Select a pool to delete:',
+    choices: pools.map(p => ({ name: p.name, value: p.name })),
+    pageSize: 10,
+  });
+
+  const pool = await getPool(poolName);
+  if (!pool) {
+    logger.error(`Pool "${poolName}" not found`);
+    return;
+  }
+  const ok = await confirm({ message: `Delete pool "${poolName}"?`, default: false });
   if (!ok) return;
-  await deletePool(name);
-  logger.success(`Pool "${name}" deleted`);
+  await deletePool(poolName);
+  logger.success(`Pool "${poolName}" deleted`);
 }
