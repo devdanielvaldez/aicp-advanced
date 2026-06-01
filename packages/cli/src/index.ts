@@ -1,43 +1,36 @@
 #!/usr/bin/env node
 
-export { consensusCommand } from './commands/consensus.js';
-export { OllamaClient } from './ollama/client.js';
-export { loadConfig, saveConfig } from './config/manager.js';
-export { listModelsCommand } from './commands/list.js';
-export { selectModelsCommand } from './commands/select.js';
-
 import chalk from 'chalk';
 import select from '@inquirer/select';
 import input from '@inquirer/input';
-import number from '@inquirer/number';
-import confirm from '@inquirer/confirm';
+import ora from 'ora';
 import { listModelsCommand } from './commands/list.js';
 import { selectModelsCommand } from './commands/select.js';
-import { consensusCommand } from './commands/consensus.js';
 import { loadConfig } from './config/manager.js';
+import { listPools } from './pools/manager.js';
+import { createPoolCommand } from './commands/pool/create.js';
+import { listPoolsCommand } from './commands/pool/list.js';
+import { deletePoolCommand } from './commands/pool/delete.js';
+import { editPoolCommand } from './commands/pool/edit.js';
+import { chatPoolCommand } from './commands/pool/chat.js';
+import { showPoolCommand } from './commands/pool/show.js';
+import { regeneratePromptCommand } from './commands/pool/regenerate-prompt.js';
+import { ExitPromptError } from '@inquirer/core';
 
 const logo = `
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   █████╗ ██╗ ██████╗██████╗     ██████╗ ███████╗██████╗      ║
-║  ██╔══██╗██║██╔════╝██╔══██╗    ██╔══██╗██╔════╝██╔══██╗     ║
-║  ███████║██║██║     ██████╔╝    ██████╔╝█████╗  ██████╔╝     ║
-║  ██╔══██║██║██║     ██╔         ██╔══██╗██╔══╝  ██╔══██╗     ║
-║  ██║  ██║██║╚██████╗██║         ██████╔╝███████╗██║  ██║     ║
-║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝         ╚═════╝ ╚══════╝╚═╝  ╚═╝     ║
-║                                                              ║
-║         AI Consensus Protocol - Advanced Debate CLI          ║
-║                     Version 1.3.0                            ║
-╚══════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                  ║
+║   █████╗ ██╗ ██████╗██████╗     ██████╗ ███████╗██████╗                          ║
+║  ██╔══██╗██║██╔════╝██╔══██╗    ██╔══██╗██╔════╝██╔══██╗                         ║
+║  ███████║██║██║     ██████╔╝    ██████╔╝█████╗  ██████╔╝                         ║
+║  ██╔══██║██║██║     ██╔══██╗    ██╔══██╗██╔══╝  ██╔══██╗                         ║
+║  ██║  ██║██║╚██████╗██║  ██║    ██████╔╝███████╗██║  ██║                         ║
+║  ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝                         ║
+║                                                                                  ║
+║              AI Consensus Protocol - Developer Edition                          ║
+║                         Version 2.0.0                                           ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
 `;
-
-interface DebateOptions {
-    interactive: boolean;
-    graph: boolean;
-    turbo: boolean;
-    selfEval: boolean;
-    memory: boolean;
-}
 
 async function showSelectedModels(): Promise<void> {
     const config = await loadConfig();
@@ -51,76 +44,16 @@ async function showSelectedModels(): Promise<void> {
     }
 }
 
-async function getDebateInput(): Promise<{ prompt: string; rounds: number }> {
-    const prompt = await input({
-        message: 'Enter your question or topic for debate:',
-        validate: (v: string) => v.trim().length > 0 ? true : 'Prompt cannot be empty',
-    });
-    const rounds = await number({
-        message: 'Number of debate rounds (1-5):',
-        default: 2,
-        min: 1,
-        max: 5,
-        step: 1,
-    });
-    return { prompt, rounds: rounds ?? 2 };
-}
-
-async function debateModeMenu(): Promise<DebateOptions | null> {
-    console.log(chalk.cyan('\n  Configure your debate mode:\n'));
-
-    const mode = await select({
-        message: 'Select debate mode:',
-        choices: [
-            { name: '💬  Standard     — models debate in sequence', value: 'standard' },
-            { name: '🎮  Interactive  — you participate between rounds', value: 'interactive' },
-            { name: '← Back', value: 'back' },
-        ],
-    });
-
-    if (mode === 'back') return null;
-
-    const speed = await select({
-        message: 'Select processing speed:',
-        choices: [
-            { name: '🐢  Normal  — full responses, higher quality', value: 'normal' },
-            { name: '🚀  Turbo   — faster, shorter responses', value: 'turbo' },
-        ],
-    });
-
-    const extras = await select({
-        message: 'Enable extra features:',
-        choices: [
-            { name: '⬜  None', value: 'none' },
-            { name: '📊  Graph       — visualize argument relationships', value: 'graph' },
-            { name: '📝  Self-Eval   — models evaluate their own responses', value: 'selfEval' },
-            { name: '📊📝 Both', value: 'both' },
-        ],
-    });
-
-    const useMemory = await confirm({
-        message: 'Enable long‑term memory? (recalls past debates using RAG)',
-        default: false,
-    });
-
-    return {
-        interactive: mode === 'interactive',
-        turbo: speed === 'turbo',
-        graph: extras === 'graph' || extras === 'both',
-        selfEval: extras === 'selfEval' || extras === 'both',
-        memory: useMemory,
-    };
-}
-
 async function modelsMenu(): Promise<void> {
     const action = await select({
-        message: 'Models:',
+        message: chalk.bold('Models Management'),
         choices: [
             { name: '📋  List installed models', value: 'list' },
-            { name: '🎯  Select models for debate', value: 'select' },
+            { name: '🎯  Select models for pools', value: 'select' },
             { name: '👁️   Show selected models', value: 'show' },
-            { name: '← Back', value: 'back' },
+            { name: '←  Back', value: 'back' },
         ],
+        pageSize: 10,
     });
 
     switch (action) {
@@ -136,44 +69,105 @@ async function modelsMenu(): Promise<void> {
         case 'back':
             return;
     }
-
     await modelsMenu();
 }
 
-async function mainMenu(): Promise<void> {
-    console.log(chalk.cyan(logo));
-    console.log(chalk.gray('  ⚡ Lightning-fast structured debates between local LLMs\n'));
-
+async function poolsMenu(): Promise<void> {
     const action = await select({
-        message: 'What would you like to do?',
+        message: chalk.bold('Model Pools'),
         choices: [
-            { name: '💬  Start a debate', value: 'debate' },
-            { name: '🤖  Manage models', value: 'models' },
-            { name: '❌  Exit', value: 'exit' },
+            { name: '✨  Create pool', value: 'create' },
+            { name: '📋  List pools', value: 'list' },
+            { name: '🔍  Show pool details', value: 'show' },
+            { name: '✏️   Edit pool', value: 'edit' },
+            { name: '🗑️   Delete pool', value: 'delete' },
+            { name: '🔄  Regenerate system prompt', value: 'regenerate' },
+            { name: '💬  Chat with pool', value: 'chat' },
+            { name: '←  Back', value: 'back' },
         ],
+        pageSize: 10,
     });
 
     switch (action) {
-        case 'debate': {
-            const options = await debateModeMenu();
-            if (options) {
-                const { prompt, rounds } = await getDebateInput();
-                await consensusCommand(prompt, { rounds, ...options });
-            }
+        case 'create':
+            await createPoolCommand();
             break;
-        }
+        case 'list':
+            await listPoolsCommand();
+            break;
+        case 'show':
+            await showPoolCommand();
+            break;
+        case 'edit':
+            await editPoolCommand();
+            break;
+        case 'delete':
+            await deletePoolCommand();
+            break;
+        case 'regenerate':
+            await regeneratePromptCommand();
+            break;
+        case 'chat':
+            await chatPoolCommand();
+            break;
+        case 'back':
+            return;
+    }
+    await poolsMenu();
+}
+
+async function mainMenu(): Promise<void> {
+    console.clear();
+    console.log(chalk.cyan(logo));
+    console.log(chalk.gray('  ⚡ Collaborative AI for developers – debate and consensus on code\n'));
+
+    const spinner = ora({ text: 'Loading pools...', color: 'cyan' }).start();
+    let poolsCount = 0;
+    try {
+        const pools = await listPools();
+        poolsCount = pools.length;
+    } catch {
+    }
+    spinner.stop();
+
+    const poolsInfo = poolsCount > 0 ? chalk.green(`(${poolsCount} available)`) : chalk.yellow('(none)');
+    const modelsInfo = chalk.gray('(manage models)');
+
+    const action = await select({
+        message: chalk.bold('What would you like to do?'),
+        choices: [
+            { name: `🧩  Manage model pools ${poolsInfo}`, value: 'pools' },
+            { name: `🤖  Manage models ${modelsInfo}`, value: 'models' },
+            { name: '❌  Exit', value: 'exit' },
+        ],
+        pageSize: 10,
+    });
+
+    switch (action) {
+        case 'pools':
+            await poolsMenu();
+            break;
         case 'models':
             await modelsMenu();
             break;
         case 'exit':
-            console.log(chalk.green('\n  Thank you for using AICP. Goodbye!\n'));
+            console.log(chalk.green('\n  Thank you for using AICP Developer Edition. Goodbye!\n'));
             process.exit(0);
     }
-
     await mainMenu();
 }
 
+console.clear();
+const welcomeSpinner = ora({ text: 'Initializing AICP environment...', color: 'cyan' }).start();
+await new Promise(resolve => setTimeout(resolve, 800));
+welcomeSpinner.succeed('Ready');
+
 mainMenu().catch(err => {
-    console.error(chalk.red('Fatal error:'), err);
-    process.exit(1);
+    if (err instanceof ExitPromptError) {
+        console.log(chalk.yellow('\n  Exiting gracefully...\n'));
+        process.exit(0);
+    } else {
+        console.error(chalk.red('Fatal error:'), err);
+        process.exit(1);
+    }
 });

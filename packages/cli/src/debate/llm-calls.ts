@@ -13,7 +13,9 @@ export async function callModelStreaming(
     temperature: number,
     phase: string,
     onStream: (chunk: string, full: string) => void,
-    maxRetries = 2
+    maxRetries = 2,
+    numCtx = 65536,
+    applyFormatting = false
 ): Promise<string> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -25,6 +27,13 @@ export async function callModelStreaming(
 
             let fullContent = '';
             const wrappedOnStream = (chunk: string, full: string) => {
+                let styledChunk = chunk;
+                if (applyFormatting) {
+                    styledChunk = styledChunk.replace(/`([^`]+)`/g, (_, code) => chalk.bgGray.white(code));
+                    styledChunk = styledChunk.replace(/\b(REASONING|ANSWER|CODE|CRITIQUE|DEFENSE|CONCESSION|REBUTTAL|FINAL POSITION):/g, (match) => chalk.yellow.bold(match));
+                    styledChunk = styledChunk.replace(/\*\*([^*]+)\*\*/g, (_, t) => chalk.bold(t));
+                    styledChunk = styledChunk.replace(/\*([^*]+)\*/g, (_, t) => chalk.italic(t));
+                }
                 if ((global as any).__graphEnabled) {
                     emitGraphEvent({
                         type: 'stream_chunk',
@@ -34,7 +43,7 @@ export async function callModelStreaming(
                         fullText: full
                     });
                 }
-                onStream(chunk, full);
+                onStream(styledChunk, full);
                 fullContent = full;
             };
 
@@ -43,7 +52,8 @@ export async function callModelStreaming(
                 messages,
                 maxTokens,
                 temperature,
-                wrappedOnStream
+                wrappedOnStream,
+                numCtx
             );
 
             const trimmed = result.trim();
@@ -71,7 +81,8 @@ export async function callModelStreamingVote(
     userPrompt: string,
     maxTokens: number,
     temperature: number,
-    maxRetries = 3      // Aumentado a 3 reintentos
+    maxRetries = 3,
+    numCtx = 8192
 ): Promise<string> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -99,7 +110,8 @@ export async function callModelStreamingVote(
                 messages,
                 maxTokens,
                 temperature,
-                onStream
+                onStream,
+                numCtx
             );
             console.log('');
 
@@ -128,7 +140,8 @@ export async function callModel(
     userPrompt: string,
     maxTokens: number,
     temperature = 0.3,
-    maxRetries = 2
+    maxRetries = 2,
+    numCtx = 65536 
 ): Promise<string> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -138,7 +151,13 @@ export async function callModel(
             }
             messages.push({ role: 'user', content: userPrompt });
 
-            const response = await ollama.chat(modelId, messages, maxTokens, temperature);
+            const response = await ollama.chat(
+                modelId,
+                messages,
+                maxTokens,
+                temperature,
+                numCtx
+            );
             const content = response.content?.trim();
 
             if (content && content.length >= 5 && !content.includes('[ERROR]') && content !== '[No response]') {
