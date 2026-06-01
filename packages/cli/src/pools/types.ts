@@ -5,5 +5,5 @@ export interface Pool {
     models: string[];
     systemPrompt: string;
     createdAt: string;
-    updateAt: string;
+    updatedAt: string;
 }
