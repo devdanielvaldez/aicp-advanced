@@ -5,7 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] – 2025-05-27
+## [2.0.0] – 2026-06-01
+
+### Added
+
+- **Model Pools** – create named pools of models with a specialty description. Pools auto‑generate a system prompt based on the description.
+- **Code‑focused debates** – tailored prompts for software development: models output reasoning and code blocks in any language.
+- **Streaming synthesis** – final answer streams token by token with full Markdown rendering (syntax highlighting, lists, bold, italic).
+- **Pool management CLI commands** – `create`, `list`, `show`, `edit`, `delete`, `regenerate-prompt`, and `chat`.
+- **Interactive pool selection** – all pool commands now use a searchable, mouse‑friendly list (via `@inquirer/select`).
+- **Large context support** – token limits increased to 32k for proposals/arguments/rebuttals, 65k for synthesis. Context window (`num_ctx`) set to 65k by default.
+- **Markdown terminal renderer** – custom renderer with syntax highlighting, code block borders, heading styles, and inline formatting.
+- **Graceful `Ctrl+C` handling** – captures `ExitPromptError` and exits with code 0, avoiding npm error messages.
+- **Self‑vote rejection** – voting phase discards any vote where a model tries to vote for itself.
+- **Random vote fallback** – after 3 failed attempts, a random candidate is assigned to ensure every model votes.
+- **Inline streaming styling** – keywords (REASONING, ANSWER, CODE, CRITIQUE, etc.) are highlighted in real time during debates.
+
+### Changed
+
+- **CLI menu** – redesigned with dynamic pool count display, mouse‑friendly selections, and a polished logo.
+- **Default focus** – shifted entirely to developer use cases; removed general‑purpose debate options from the main menu.
+- **Prompts** – redesigned for coding tasks: strict format (REASONING + CODE), language‑agnostic, with emphasis on error handling and best practices.
+- **Token budgets** – drastically increased to support long code generation (32k–65k tokens).
+- **Ollama client** – `chatStream` and `chat` now accept `numCtx` to control context window size.
+- **Voting temperature** – lowered to 0.01 to enforce format compliance.
+- **Synthesis phase** – now uses streaming (`callModelStreaming`) instead of non‑streaming call, allowing real‑time final answer output.
+
+### Fixed
+
+- **Truncated responses** – eliminated by raising token limits and removing preview truncation in output.
+- **Inconsistent model behaviour** – enhanced refusal detection and retry logic for all phases.
+- **Pool name input** – replaced free‑text with interactive list for all pool operations, eliminating typos.
+
+### Removed
+
+- **General‑purpose debate options** from main menu (now only pools and models management remain).
+- **Old `consensus` command** from interactive menu (still available via CLI arguments for backward compatibility).
+
+## [1.2.0] – 2026-05-27
 
 ### Added
 
@@ -35,11 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph HTML loading error – externalised to `graph-viewer.html` and served via `fs.readFileSync`.
 - Spinner not stopping on failure – now `spinner.stop()` is called before error handling.
 
-### Removed
-
-- None.
-
-## [1.1.0] – 2025-05-27
+## [1.1.0] – 2026-05-27
 
 ### Added
 
@@ -73,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Legacy `commander`‑based argument parsing** – replaced by interactive menu.
 - **Old voting placeholder** – replaced by full streaming vote with format enforcement.
 
-## [1.0.0] – 2025-05-25
+## [1.0.0] – 2026-05-25
 
 ### Added
 
