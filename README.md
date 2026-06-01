@@ -4,315 +4,214 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-0.1.2+-green)](https://ollama.ai)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933)](https://nodejs.org)
+[![Homebrew](https://img.shields.io/badge/Homebrew-Formula-orange)](https://brew.sh)
 
-**AICP** is a production‑grade framework that orchestrates **structured debates** between multiple local LLMs, then **votes** to reach a consensus. It combines real‑time streaming, democratic voting, a reputation system, optional graph visualisation, long‑term memory (RAG), self‑evaluation, and turbo mode – all running 100% locally via Ollama.
+**AICP** is a developer‑first platform that transforms local LLMs into collaborative coding teams. Create **model pools** (e.g., "TypeScript Squad"), let them debate, vote, and produce production‑ready code – all in real time, 100% local via Ollama.
 
 ![AICP Banner](./assets/banner.png)
 
 ---
 
-## 📋 Table of Contents
+## 🎯 What is AICP?
 
-- [Features](#-features)
-- [How It Works](#-how-it-works)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Detailed Usage](#-detailed-usage)
-  - [Selecting Models](#1-selecting-models)
-  - [Starting a Debate](#2-starting-a-debate)
-  - [Debate Options (Interactive, Graph, Turbo, Memory, Self‑Eval)](#3-debate-options)
-  - [Command Line (Advanced)](#4-command-line-advanced)
-- [Configuration](#-configuration)
-- [Architecture](#-architecture)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-- [License](#-license)
+Stop trusting a single AI. Instead, assemble a **team of models** that discuss, critique, and vote on the best solution for your coding tasks. Whether you need a REST API, a data pipeline, or a frontend component – AICP delivers a consensus‑driven answer you can actually use.
+
+- **Model Pools** – group models by specialty (TypeScript, Python, Rust, etc.).
+- **Real‑time code debates** – watch models propose, argue, and refine code.
+- **Live streaming** – see every token, every criticism, every vote.
+- **Final answer with syntax highlighting** – polished markdown output ready to copy.
 
 ---
 
 ## ✨ Features
 
-- 🧠 **Multi‑model debates** – run Llama 3, Mistral, Phi‑3, Gemma, etc. side by side.
-- 🗳️ **Democratic voting** – models vote for the best answer (cannot vote for themselves).
-- ⚡ **Real‑time streaming** – watch every argument, rebuttal, and vote token by token.
-- 📊 **Live graph visualiser** – D3.js graph with draggable nodes, edges, and streaming text.
-- 🎮 **Interactive debate** – you choose which answer the models focus on during the argument round.
-- 🚀 **Turbo mode** – automatically optimises system resources (CPU priority, Ollama env) for faster inference.
-- 📝 **Self‑evaluation** – models rate their own accuracy, honesty, clarity, and confidence; updates reputation.
-- 🧠 **Long‑term memory (RAG)** – stores past debates in a vector database and retrieves relevant context for future conversations.
-- 📊 **Reputation system** – models gain or lose reputation (accuracy, energy, honesty) across debates.
-- 🖥️ **Modern CLI** – interactive menu with logo, coloured output, and intuitive workflow.
-- 🔌 **Extensible** – pluggable consensus algorithms, memory layers, and P2P networking (experimental).
+| Feature | Description |
+|---------|-------------|
+| 🧠 **Model Pools** | Create named teams of models with a custom specialty description. Auto‑generated system prompts. |
+| 💬 **Code‑focused debates** | Structured prompts for REASONING + CODE. Language‑agnostic. |
+| ⚡ **Real‑time streaming** | See token‑by‑token output of arguments, rebuttals, and final code. |
+| 🗳️ **Democratic voting** | Models vote for the best code solution (self‑votes are rejected). |
+| 🎨 **Markdown rendering** | Syntax‑highlighted code blocks, bold, italic, lists – right in your terminal. |
+| 🧠 **Long‑term memory** (RAG) | Past debates are stored and retrieved for context (optional). |
+| 🚀 **Turbo mode** | Automatically optimises system resources for faster inference. |
+| 📊 **Reputation system** | Models gain/lose reputation based on accuracy, honesty, and energy. |
+| 🖥️ **Modern CLI** | Mouse‑friendly, keyboard‑driven menus with animations and pool count display. |
+| 🍺 **Homebrew ready** | Install with `brew tap devdanielvaldez/aicp && brew install aicp`. |
 
 ---
 
-## ⚙️ How It Works
+## ⚙️ How It Works (Developer Edition)
 
-1. **Warmup** – Each selected model receives a trivial prompt to measure latency. Models slower than 30 seconds are automatically excluded.
-2. **Memory retrieval** (if enabled) – The system searches past debates for semantically similar topics and injects relevant context into the prompt.
-3. **Proposals** – Every model gives its initial answer.
-4. **Argument round** – Models see all proposals, identify differences, defend their own position, and concede points where appropriate.
-5. **Rebuttal rounds** (configurable) – Models continue debating, refining their positions.
-6. **Voting** – Each model (except itself) votes for the most accurate/well‑reasoned answer, providing a reason and confidence score.
-7. **Synthesis** – The winning model writes a final, unified answer for the user.
-8. **Self‑evaluation** (optional) – Models assess their own performance, influencing their reputation.
-9. **Memory storage** (if enabled) – The final answer and topic are stored as a vector embedding for future retrieval.
+1. **Create a pool** – give it a name and description (e.g., *“Expert TypeScript backend developers”*).
+2. **Select models** – choose which Ollama models belong to the pool.
+3. **Chat with the pool** – type a coding request (e.g., *“Create an Express API to convert meters to centimeters”*).
+4. **Models debate** – each model proposes a solution (REASONING + CODE).
+5. **Argument & rebuttal rounds** – models critique, defend, and refine.
+6. **Voting** – models vote for the best code (cannot vote for themselves).
+7. **Synthesis** – the winning model writes the final answer with a markdown code block.
+8. **You get the code** – ready to copy, paste, and run.
 
-All steps are **streamed** to the terminal – you see every token as it is generated.
+All steps stream live to your terminal – you see every line of reasoning and every line of code as it’s generated.
 
 ---
 
 ## 📦 Prerequisites
 
-- **Node.js** 18 or later (tested with v20+)
+- **Node.js** 18+ (tested with v20+)
 - **Ollama** installed and running ([ollama.ai](https://ollama.ai))
 - At least two models pulled, for example:
 
 ```bash
 ollama pull llama3:8b
 ollama pull mistral:7b
+ollama pull phi3:mini
 ```
 
-- (For memory) An embedding model, e.g. `nomic-embed-text`:
-
-```bash
-ollama pull nomic-embed-text
-```
-
-> **Recommendation**: For best debate quality, use models with at least 7B parameters. Smaller models (2B‑3B) may give very short or irrelevant answers. Turbo mode helps even small models respond faster.
+> **Recommendation**: Use models with at least 7B parameters for best code quality. Small models (1B‑2B) may produce incomplete code.
 
 ---
 
 ## 🛠 Installation
 
-### 1. Clone the repository
+### Option 1: Homebrew (macOS – recommended)
+
+```bash
+brew tap devdanielvaldez/aicp
+brew install aicp
+```
+
+Then run `aicp` from anywhere.
+
+### Option 2: From source
 
 ```bash
 git clone https://github.com/devdanielvaldez/aicp-advanced.git
 cd aicp-advanced
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
-```
-
-### 3. Build all packages
-
-```bash
 npm run build
+cd packages/cli
+npm run dev
 ```
 
-### 4. (Optional) Install the CLI globally
+Or install globally:
 
 ```bash
 npm install -g ./packages/cli
+aicp
 ```
-
-Now you can run `aicp` from anywhere.
 
 ---
 
 ## 🚀 Quick Start
 
-Start the interactive CLI:
-
-```bash
-cd packages/cli
-npm run dev
-```
-
-Or if installed globally:
-
 ```bash
 aicp
 ```
 
-You will see the main menu with options:
+You will see the main menu with:
 
-- 💬 Start a debate
-- 🤖 Manage models (list, select, show selected)
-- ❌ Exit
+- 🧩 **Manage model pools** – create, list, edit, delete, and chat with pools.
+- 🤖 **Manage models** – list and select which models are available for pools.
 
-### First debate (quick example)
+### Create your first pool
 
-1. Go to **Manage models** → **Select models** and choose at least two models.
-2. Go back and choose **Start a debate**.
-3. Configure your debate:
-   - Standard debate mode
-   - Normal speed (or Turbo for faster responses)
-   - Extra features: choose Graph (📊), Self‑Eval (📝), both, or none
-   - Enable long‑term memory if you have pulled an embedding model
-4. Enter your question and number of rounds.
-5. Watch the models argue in real time.
-6. Read the final answer.
+1. Choose **Manage model pools** → **Create pool**.
+2. Enter a name (e.g., `typescript-backend`).
+3. Enter a description (e.g., *“Expert TypeScript backend developers for Node.js, Express, and REST APIs”*).
+4. Select at least two models from your installed list.
+5. The system auto‑generates a system prompt.
+6. Choose **Chat with pool** and start coding.
+
+### Example chat
+
+```text
+> Create an Express API to convert meters to centimeters
+
+🤖 Models are debating...
+
+[llama3:8b] streaming:
+REASONING: Simple, type‑safe solution with input validation...
+CODE:
+```typescript
+import express from 'express';
+const app = express();
+app.use(express.json());
+app.post('/convert', (req, res) => {
+  const { meters } = req.body;
+  if (typeof meters !== 'number') return res.status(400).json({ error: 'Invalid input' });
+  res.json({ centimeters: meters * 100 });
+});
+app.listen(3000);
+```
+
+After debate and voting, the winning model streams the final answer with syntax highlighting.
 
 ---
 
 ## 📖 Detailed Usage
 
-### 1. Selecting Models
+### Model Pools
 
-- From the main menu, choose **Manage models** → **Select models**.
-- A checklist of all locally available models appears.
-- Press `space` to select/unselect, then `enter` to confirm.
-- Your selection is saved in `~/.aicp/config.json`.
+| Command | Description |
+|---------|-------------|
+| `Create pool` | Interactive creation with name, description, and model selection. |
+| `List pools` | Shows all pools with their descriptions and model counts. |
+| `Show pool details` | Displays full info including the generated system prompt. |
+| `Edit pool` | Change description, add/remove models, optionally regenerate system prompt. |
+| `Delete pool` | Remove a pool permanently. |
+| `Regenerate system prompt` | Re‑create the system prompt using the first model in the pool. |
+| `Chat with pool` | Enter a REPL where you send coding requests and get final answers. |
 
-> **Tip**: Exclude very slow or unreliable models (like `llama2:latest` on CPU) to keep debates snappy.
+### Chat Commands
 
----
+Inside a pool chat:
 
-### 2. Starting a Debate
+- `/verbose` – toggle detailed debate logs.
+- `/exit` – leave the chat.
+- `/help` – show commands.
 
-From the main menu, choose **Start a debate**.
+### Configuration
 
-You will be guided through:
+All data is stored in `~/.aicp/`:
 
-- **Debate mode** – Standard (models talk in sequence) or Interactive (you choose which answer to focus on during the argument round).
-- **Processing speed** – Normal (full responses) or Turbo (optimised for speed).
-- **Extra features** – Graph visualiser (📊), Self‑evaluation (📝), both, or none.
-- **Long‑term memory** – Whether to store and retrieve past debates (requires an embedding model).
-
-Then:
-
-- **Prompt** – Type your question (e.g., *“Should autonomous vehicles prioritise passenger safety over pedestrians?”*).
-- **Rounds** – Number of debate rounds (1–5). More rounds allow deeper discussion but take longer.
-
----
-
-### 3. Debate Options Explained
-
-| Option | Description |
-|--------|-------------|
-| **Standard mode** | Models respond one after another without user intervention. |
-| **Interactive mode** | Before the argument round, you select which model’s answer the others should focus on (or pick random/all). |
-| **Normal speed** | Default token budgets and temperature. |
-| **Turbo mode** | Automatically `renice` the process, set Ollama environment variables (`OLLAMA_NUM_PARALLEL=1`, etc.), and prints system resource report. |
-| **Graph** | Opens a browser window with a real‑time D3.js graph: nodes = models, edges = who is responding to whom, streaming text under each node. Draggable nodes, dark theme. |
-| **Self‑Eval** | After the debate, each model rates its own answer on accuracy, honesty, clarity, and confidence (0.0–1.0). These scores are used to update its reputation. |
-| **Long‑term memory** | Stores the debate (topic + final answer) as a vector embedding using `sqlite-vec`. When a new debate starts, the system retrieves up to 3 most similar past debates and injects them as context. |
-
----
-
-### 4. Command Line (Advanced)
-
-If you prefer the terminal over the interactive menu, use the CLI directly (after global install):
-
-```bash
-aicp list
-aicp select
-aicp consensus "Your question" --rounds 2 --graph --turbo --self-eval --memory
-```
-
-Available flags for `consensus`:
-
-| Flag | Description |
-|------|-------------|
-| `--rounds <number>` | Number of debate rounds (1–5, default 2) |
-| `--interactive` | Enable interactive focus selection |
-| `--graph` | Launch the graph visualiser (opens browser) |
-| `--turbo` | Optimise system resources for speed |
-| `--self-eval` | Run self‑evaluation phase after debate |
-| `--memory` | Enable long‑term memory (RAG) |
-
-Example with all flags:
-
-```bash
-aicp consensus "Should AI have rights?" --rounds 3 --interactive --graph --turbo --self-eval --memory
-```
-
-Inside the `packages/cli` directory, you can also run:
-
-```bash
-npm run dev consensus "Your question" -- --rounds 2 --graph
-```
-
----
-
-## ⚙️ Configuration
-
-All user configuration is stored in `~/.aicp/`:
-
-| File | Purpose |
-|------|---------|
-| `config.json` | Selected models, P2P settings (future) |
-| `reputation.db` | SQLite database with model reputation scores |
-| `memory.db` | Vector database for long‑term memory (sqlite-vec) |
-
-You can manually edit `config.json`:
-
-```json
-{
-  "selectedModels": ["mistral:7b", "phi3:latest"],
-  "p2pEnabled": false,
-  "bootstrapPeers": []
-}
-```
-
-### Reputation System
-
-Reputation is automatically updated after each debate based on:
-
-- **Accuracy** – whether a model’s answer belonged to the winning cluster.
-- **Energy** – latency penalty (slower models lose a small amount of reputation).
-- **Honesty** – updated by self‑evaluation (honesty score) or future cross‑endorsements.
-
-The overall score is a weighted average (accuracy 50%, honesty 30%, energy 20%). New models start at 0.5.
+- `pools.json` – your model pools.
+- `reputation.db` – model reputation scores.
+- `config.json` – global settings (selected models, etc.).
 
 ---
 
 ## 🏗 Architecture
 
-AICP is a **monorepo** with four TypeScript packages:
+AICP is a TypeScript monorepo with three active packages (P2P is experimental and not used in the developer edition):
 
 ```
 aicp-advanced/
 ├── packages/
-│   ├── core/         # Consensus, BFT, PSO, reputation, vector memory
-│   ├── cli/          # Interactive CLI, debate orchestrator, streaming client, graph server, memory (RAG)
-│   ├── api/          # REST API (Prometheus metrics – stub)
-│   └── p2p/          # Libp2p peer‑to‑peer layer (experimental)
+│   ├── core/        # Consensus, reputation, vector memory, PSO (optional)
+│   ├── cli/         # Interactive CLI, debate orchestrator, streaming client, pools
+│   └── api/         # REST API (stub)
 └── tsconfig.base.json
 ```
 
-### Key Modules in `@aicp/cli`
-
-| Module | Purpose |
-|--------|---------|
-| `phases.ts` | Orchestrates proposal, argument, rebuttal, voting, synthesis phases. |
-| `llm-calls.ts` | Streaming calls to Ollama with retries and graph events. |
-| `graph-server.ts` | WebSocket + HTTP server for real‑time graph visualisation. |
-| `memory.ts` | Vector storage and retrieval (RAG) using `sqlite-vec`. |
-| `resource-manager.ts` | System analysis and turbo mode optimisations. |
-| `prompts.ts` | Dynamic prompt building (supports file‑based overrides). |
-
-All communication with Ollama uses HTTP streaming (`/api/chat` with `stream: true`).
+The core debate engine (`phases.ts`) is reused for pools, but with custom prompts tailored for code generation. All communication with Ollama uses HTTP streaming (`/api/chat` with `stream: true`).
 
 ---
 
 ## 🐞 Troubleshooting
 
-| Problem | Likely cause | Solution |
-|---------|--------------|----------|
-| `Ollama is not running` | Ollama not started | Run `ollama serve` in another terminal. |
-| Models excluded during warmup | Latency >30 seconds | Increase `SLOW_MODEL_THRESHOLD_MS` in `packages/cli/src/debate/config.ts`. |
-| `timeout of 30000ms exceeded` | Model inference slow | Increase timeout in `client.ts` (axios) or use `--turbo`. |
-| Graph page blank | HTML file not found | Ensure `packages/cli/src/debate/graph-viewer.html` exists. Re‑run `npm run build`. |
-| Vote unparseable | Model didn't follow `VOTE:` format | The parser already includes fallback scanning. Lower temperature further (already 0.01). |
-| Self‑vote | Model ignored instruction | Discarded by parser; improve prompt (already done). |
-| Memory not working | Embedding model missing | Run `ollama pull nomic-embed-text` and ensure `sqlite-vec` is installed. |
-| Reputation scores stay `0.000` | Missing database entry | The system now initialises scores automatically. Check `~/.aicp/reputation.db` permissions. |
+| Problem | Solution |
+|---------|----------|
+| `Ollama is not running` | Start Ollama: `ollama serve`. |
+| Models time out | Increase `OLLAMA_HOST` timeout in `packages/cli/src/ollama/client.ts` (default 300s). |
+| Pool chat not responding | Ensure you have selected at least two models for the pool. |
+| Final answer truncated | Raise `TOKEN_LIMITS.synthesis` in `packages/cli/src/pools/debate.ts` (default 65536). |
+| Homebrew installation fails | Make sure you have Node.js installed (`brew install node`), then `brew install aicp`. |
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Development workflow:**
+We love contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 git clone https://github.com/devdanielvaldez/aicp-advanced.git
@@ -323,25 +222,24 @@ cd packages/cli
 npm run dev
 ```
 
-To add a new feature or fix a bug, create a branch, make changes, test, and open a Pull Request.
+Then open a Pull Request.
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+MIT © [devdanielvaldez](https://github.com/devdanielvaldez)
 
 ---
 
 ## 🙏 Acknowledgements
 
 - [Ollama](https://ollama.ai) – local LLM runtime
-- [libp2p](https://libp2p.io) – future P2P networking
 - [Inquirer.js](https://github.com/SBoudrias/Inquirer.js) – beautiful CLI prompts
-- [sqlite-vec](https://github.com/asg017/sqlite-vec) – vector search for SQLite
+- [Highlight.js](https://highlightjs.org/) – syntax highlighting for terminal
 
 ---
 
-**Built with ❤️ for the open‑source AI community**
+**Built with ❤️ for developers who want reliable AI code assistance.**
 
-[GitHub Repository](https://github.com/devdanielvaldez/aicp-advanced) – Star and fork welcome!
+[GitHub Repository](https://github.com/devdanielvaldez/aicp-advanced) – ⭐ star and fork welcome!
