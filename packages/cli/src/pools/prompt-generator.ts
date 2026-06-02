@@ -13,6 +13,8 @@ Write a concise system prompt (maximum 150 words) that will be given to each mod
 - Encourage the model to provide reasoning and code examples when appropriate.
 - Remind the model that it is part of a debate team, so it should be ready to argue, critique, and vote.
 
+**IMPORTANT**: The model must understand that it can answer questions about the code without generating new code. It should be able to explain how existing code works, answer conceptual questions, and only generate code when explicitly asked (e.g., "write", "create", "implement"). For questions like "what does this project do?", it should give a natural language explanation.
+
 Respond with only the system prompt, no extra text.`;
 
 export async function generateSystemPrompt(

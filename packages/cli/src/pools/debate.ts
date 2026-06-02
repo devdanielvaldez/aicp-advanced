@@ -36,7 +36,6 @@ function isRefusal(content: string): boolean {
   return refusalPatterns.some(p => p.test(content));
 }
 
-// Helper to inject context at the beginning of a prompt
 function injectContext(basePrompt: string, context?: string): string {
   if (!context) return basePrompt;
   return `[CONTEXT FROM PROJECT CODEBASE]:\n${context}\n\n---\n\n${basePrompt}`;
@@ -47,22 +46,30 @@ function buildCodeProposalPrompt(pool: Pool, userPrompt: string, context?: strin
   if (userPrompt.toLowerCase().includes('itbis')) {
     clarifiedPrompt = `${userPrompt}\n\nNote: ITBIS is a tax (similar to VAT). It's a standard tax calculation.`;
   }
+
   let prompt = `${pool.systemPrompt}
 
-You are a senior software engineer. The user request is:
-"${clarifiedPrompt}"
+You are a senior software engineer with deep knowledge of the codebase shown in the context.
 
-Provide a complete, production‑ready solution. Follow this exact format:
+The user asks: "${clarifiedPrompt}"
 
-REASONING: <explain your approach, trade‑offs, and why it's good>
-CODE:
-\`\`\`<language>
-// your code here
-\`\`\`
+Your task is to provide a helpful response. Follow these guidelines:
+- If the user asks for code (e.g., "write", "create", "implement", "code"), output a solution using the format:
+  REASONING: <your reasoning>
+  CODE:
+  \`\`\`<language>
+  // code here
+  \`\`\`
+- If the user asks a conceptual question (e.g., "what does this project do?", "how does X work?"), answer clearly in natural language using the provided context. Do not force code.
+- Use the code context to give accurate answers.
+- Respond in the same language as the user's question (e.g., Spanish if they wrote in Spanish).
 
-Use the appropriate programming language based on the request and your expertise. Include input validation, error handling, and usage examples if relevant. Be thorough.`;
+Now respond:`;
 
-  return injectContext(prompt, context);
+  if (context) {
+    prompt = `[CONTEXT FROM PROJECT CODEBASE]:\n${context}\n\n---\n\n${prompt}`;
+  }
+  return prompt;
 }
 
 function buildCodeArgumentPrompt(pool: Pool, ownProposal: string, othersProposals: string, context?: string): string {
@@ -146,26 +153,20 @@ ALL POSITIONS CONSIDERED:
 ${allPositions}
 
 Now write the FINAL ANSWER for the user. Rules:
-- Output ONLY the working API code. No explanations, no "Final Answer" headers, no markdown outside the code block.
-- The code must be complete, runnable, and include the exact API the user asked for (e.g., convert meters to centimeters using Express).
-- Use a single markdown code block with the appropriate language.
+- If the user asked for code, output ONLY the working code in a markdown block.
+- If the user asked a conceptual question, output a clear explanation in natural language (no code block unless necessary).
+- Use the context to be accurate.
+- Keep the answer concise and helpful.
 
-Example of expected output:
-\`\`\`typescript
-import express from 'express';
-const app = express();
-app.use(express.json());
-app.post('/convert', (req, res) => {
-  const { meters } = req.body;
-  if (typeof meters !== 'number') return res.status(400).json({ error: 'Invalid input' });
-  res.json({ centimeters: meters * 100 });
-});
-app.listen(3000);
-\`\`\`
+Example for conceptual answer:
+"The project is a CLI tool that..."
 
-Do not add any extra text before or after the code block.`;
+Do not add extra text before or after the answer.`;
 
-  return injectContext(prompt, context);
+  if (context) {
+    prompt = `[CONTEXT FROM PROJECT CODEBASE]:\n${context}\n\n---\n\n${prompt}`;
+  }
+  return prompt;
 }
 
 async function runCodeProposalPhase(
@@ -281,7 +282,7 @@ async function runCodeArgumentRebuttalRounds(
     const lastMessagePerModel = new Map<string, string>();
     for (const modelId of currentModels) {
       const msgs = state.messages.filter(m => m.modelId === modelId);
-      if (msgs.length) lastMessagePerModel.set(modelId, msgs[msgs.length-1].content);
+      if (msgs.length) lastMessagePerModel.set(modelId, msgs[msgs.length - 1].content);
     }
 
     let focusModel: string | null = null;
@@ -412,7 +413,7 @@ async function runCodeVotingPhase(
   const finalPositions = activeModels
     .map(modelId => {
       const msgs = state.messages.filter(m => m.modelId === modelId);
-      const last = msgs[msgs.length-1]?.content ?? state.proposals.get(modelId) ?? '[no position]';
+      const last = msgs[msgs.length - 1]?.content ?? state.proposals.get(modelId) ?? '[no position]';
       return `=== ${modelId} ===\n${last}`;
     })
     .join('\n\n');
@@ -539,7 +540,7 @@ async function runCodeSynthesisPhase(
   }
 
   const winnerMsgs = state.messages.filter(m => m.modelId === winner);
-  const winnerFinalPosition = winnerMsgs[winnerMsgs.length-1]?.content ?? state.proposals.get(winner) ?? 'No position found.';
+  const winnerFinalPosition = winnerMsgs[winnerMsgs.length - 1]?.content ?? state.proposals.get(winner) ?? 'No position found.';
 
   const userPrompt = buildCodeSynthesisPrompt(pool, winnerFinalPosition, finalPositions, topVotes, activeModels.length, context);
 
@@ -719,7 +720,7 @@ export async function runPoolDebate(
   const finalPositions = activeModels
     .map(modelId => {
       const msgs = state.messages.filter(m => m.modelId === modelId);
-      const last = msgs[msgs.length-1]?.content ?? state.proposals.get(modelId) ?? '[no position]';
+      const last = msgs[msgs.length - 1]?.content ?? state.proposals.get(modelId) ?? '[no position]';
       return `=== ${modelId} ===\n${last}`;
     })
     .join('\n\n');
