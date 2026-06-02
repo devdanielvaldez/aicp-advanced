@@ -36,12 +36,18 @@ function isRefusal(content: string): boolean {
   return refusalPatterns.some(p => p.test(content));
 }
 
-function buildCodeProposalPrompt(pool: Pool, userPrompt: string): string {
+// Helper to inject context at the beginning of a prompt
+function injectContext(basePrompt: string, context?: string): string {
+  if (!context) return basePrompt;
+  return `[CONTEXT FROM PROJECT CODEBASE]:\n${context}\n\n---\n\n${basePrompt}`;
+}
+
+function buildCodeProposalPrompt(pool: Pool, userPrompt: string, context?: string): string {
   let clarifiedPrompt = userPrompt;
   if (userPrompt.toLowerCase().includes('itbis')) {
     clarifiedPrompt = `${userPrompt}\n\nNote: ITBIS is a tax (similar to VAT). It's a standard tax calculation.`;
   }
-  return `${pool.systemPrompt}
+  let prompt = `${pool.systemPrompt}
 
 You are a senior software engineer. The user request is:
 "${clarifiedPrompt}"
@@ -55,10 +61,12 @@ CODE:
 \`\`\`
 
 Use the appropriate programming language based on the request and your expertise. Include input validation, error handling, and usage examples if relevant. Be thorough.`;
+
+  return injectContext(prompt, context);
 }
 
-function buildCodeArgumentPrompt(pool: Pool, ownProposal: string, othersProposals: string): string {
-  return `${pool.systemPrompt}
+function buildCodeArgumentPrompt(pool: Pool, ownProposal: string, othersProposals: string, context?: string): string {
+  let prompt = `${pool.systemPrompt}
 
 Debate topic: coding solution for the user request.
 
@@ -74,10 +82,12 @@ DEFENSE: <why your answer is better, one sentence>
 CONCESSION: <one point from others you agree with, or "none">
 
 Focus on code quality, efficiency, correctness, and best practices across any language.`;
+
+  return injectContext(prompt, context);
 }
 
-function buildCodeRebuttalPrompt(pool: Pool, ownArgument: string, opponentArguments: string): string {
-  return `${pool.systemPrompt}
+function buildCodeRebuttalPrompt(pool: Pool, ownArgument: string, opponentArguments: string, context?: string): string {
+  let prompt = `${pool.systemPrompt}
 
 Debate topic: coding solution for the user request.
 
@@ -92,11 +102,13 @@ REBUTTAL: <counter the strongest opposing point, one sentence>
 FINAL POSITION: <your confirmed or updated answer, one sentence>
 
 Keep it focused on code.`;
+
+  return injectContext(prompt, context);
 }
 
-function buildCodeVotePrompt(pool: Pool, allProposals: string, candidates: string[], selfId: string): string {
+function buildCodeVotePrompt(pool: Pool, allProposals: string, candidates: string[], selfId: string, context?: string): string {
   const voteCandidates = candidates.filter(c => c !== selfId).join(', ');
-  return `${pool.systemPrompt}
+  let prompt = `${pool.systemPrompt}
 
 Debate on: coding solution for the user request.
 
@@ -118,10 +130,12 @@ REASON: <one sentence explaining why that answer is best>
 CONFIDENCE: <0.0 to 1.0>
 
 Do not vote for yourself. Do not vote based on order; vote based on quality.`;
+
+  return injectContext(prompt, context);
 }
 
-function buildCodeSynthesisPrompt(pool: Pool, winnerProposal: string, allPositions: string, voteCount: number, totalVoters: number): string {
-  return `${pool.systemPrompt}
+function buildCodeSynthesisPrompt(pool: Pool, winnerProposal: string, allPositions: string, voteCount: number, totalVoters: number, context?: string): string {
+  let prompt = `${pool.systemPrompt}
 
 You won a coding debate (${voteCount}/${totalVoters} votes) on the user request.
 
@@ -150,6 +164,8 @@ app.listen(3000);
 \`\`\`
 
 Do not add any extra text before or after the code block.`;
+
+  return injectContext(prompt, context);
 }
 
 async function runCodeProposalPhase(
@@ -159,7 +175,8 @@ async function runCodeProposalPhase(
   state: DebateState,
   repManager: ReputationManager,
   pool: Pool,
-  silent: boolean
+  silent: boolean,
+  context?: string
 ): Promise<string[]> {
   if (!silent) {
     console.log(chalk.bold.yellow('\n' + hr('─', 60)));
@@ -182,7 +199,7 @@ async function runCodeProposalPhase(
       });
     }
 
-    const userPrompt = buildCodeProposalPrompt(pool, prompt);
+    const userPrompt = buildCodeProposalPrompt(pool, prompt, context);
     let content = '';
     let attempts = 0;
     const maxAttempts = 2;
@@ -245,7 +262,8 @@ async function runCodeArgumentRebuttalRounds(
   repManager: ReputationManager,
   pool: Pool,
   interactive: boolean,
-  silent: boolean
+  silent: boolean,
+  context?: string
 ): Promise<string[]> {
   let currentModels = [...activeModels];
   for (let round = 1; round <= debateRounds; round++) {
@@ -314,7 +332,7 @@ async function runCodeArgumentRebuttalRounds(
         });
       }
 
-      const userPrompt = promptBuilder(pool, ownLast, othersText);
+      const userPrompt = promptBuilder(pool, ownLast, othersText, context);
       let content = '';
       let attempts = 0;
       const maxAttempts = 2;
@@ -382,7 +400,8 @@ async function runCodeVotingPhase(
   state: DebateState,
   repManager: ReputationManager,
   pool: Pool,
-  silent: boolean
+  silent: boolean,
+  context?: string
 ): Promise<{ winner: string; voteTally: Map<string, number> }> {
   if (!silent) {
     console.log(chalk.bold.magenta('\n' + hr('─', 60)));
@@ -417,7 +436,7 @@ async function runCodeVotingPhase(
         ollama,
         voterModel,
         'You are an objective judge. Follow the format exactly. Do not vote for yourself.',
-        buildCodeVotePrompt(pool, finalPositions, activeModels, voterModel),
+        buildCodeVotePrompt(pool, finalPositions, activeModels, voterModel, context),
         TOKEN_LIMITS.vote,
         0.01,
         3,
@@ -510,7 +529,8 @@ async function runCodeSynthesisPhase(
   state: DebateState,
   finalPositions: string,
   pool: Pool,
-  silent: boolean
+  silent: boolean,
+  context?: string
 ): Promise<string> {
   if (!silent) {
     console.log(chalk.bold.blue('\n' + hr('─', 60)));
@@ -521,7 +541,7 @@ async function runCodeSynthesisPhase(
   const winnerMsgs = state.messages.filter(m => m.modelId === winner);
   const winnerFinalPosition = winnerMsgs[winnerMsgs.length-1]?.content ?? state.proposals.get(winner) ?? 'No position found.';
 
-  const userPrompt = buildCodeSynthesisPrompt(pool, winnerFinalPosition, finalPositions, topVotes, activeModels.length);
+  const userPrompt = buildCodeSynthesisPrompt(pool, winnerFinalPosition, finalPositions, topVotes, activeModels.length, context);
 
   let fullAnswer = '';
   let streamOutput = '';
@@ -593,6 +613,7 @@ export async function runPoolDebate(
     selfEval?: boolean;
     memory?: boolean;
     silent?: boolean;
+    context?: string;
   } = {}
 ): Promise<string> {
   const config = await loadConfig();
@@ -613,6 +634,7 @@ export async function runPoolDebate(
   const selfEval = options.selfEval || false;
   const enableMemory = options.memory || false;
   const silent = options.silent || false;
+  const context = options.context || '';  // <-- extraer contexto
 
   if (!silent && turboMode) {
     console.log(chalk.gray('Turbo mode enabled – optimizing system resources...'));
@@ -644,6 +666,9 @@ export async function runPoolDebate(
     console.log(chalk.bold.white('  CODING DEBATE – ' + pool.name.toUpperCase()));
     console.log(chalk.bold(hr('═', 60)));
     console.log(chalk.cyan(`  Request: "${userPrompt}"`));
+    if (context) {
+      console.log(chalk.gray(`  Project context: provided (${context.length} chars)`));
+    }
     console.log(chalk.gray(`  Pool: ${pool.name} (${pool.description})`));
     console.log(chalk.gray(`  Models: ${pool.models.join(', ')}`));
     console.log(chalk.gray(`  Rounds: ${debateRounds}`));
@@ -659,7 +684,7 @@ export async function runPoolDebate(
     throw new Error('Not enough models responded.');
   }
 
-  activeModels = await runCodeProposalPhase(ollama, userPrompt, activeModels, state, repManager, pool, silent);
+  activeModels = await runCodeProposalPhase(ollama, userPrompt, activeModels, state, repManager, pool, silent, context);
   if (activeModels.length < 2) {
     if (!silent) console.log(chalk.red('\nNot enough models responded. Aborting.'));
     if (enableGraph && !silent) closeGraphServer();
@@ -668,7 +693,7 @@ export async function runPoolDebate(
     throw new Error('Not enough models after proposal phase.');
   }
 
-  activeModels = await runCodeArgumentRebuttalRounds(ollama, userPrompt, debateRounds, activeModels, state, repManager, pool, interactive, silent);
+  activeModels = await runCodeArgumentRebuttalRounds(ollama, userPrompt, debateRounds, activeModels, state, repManager, pool, interactive, silent, context);
   if (activeModels.length < 2) {
     if (!silent) console.log(chalk.red('\nNot enough models to vote. Using best reputation model as fallback.'));
     let best = pool.models[0];
@@ -699,8 +724,8 @@ export async function runPoolDebate(
     })
     .join('\n\n');
 
-  const { winner, voteTally } = await runCodeVotingPhase(ollama, userPrompt, debateRounds, activeModels, state, repManager, pool, silent);
-  const finalAnswer = await runCodeSynthesisPhase(ollama, userPrompt, winner, debateRounds, activeModels, voteTally.get(winner) || 0, state, finalPositions, pool, silent);
+  const { winner, voteTally } = await runCodeVotingPhase(ollama, userPrompt, debateRounds, activeModels, state, repManager, pool, silent, context);
+  const finalAnswer = await runCodeSynthesisPhase(ollama, userPrompt, winner, debateRounds, activeModels, voteTally.get(winner) || 0, state, finalPositions, pool, silent, context);
 
   if (enableGraph && !silent) {
     setTimeout(() => closeGraphServer(), 3000);
