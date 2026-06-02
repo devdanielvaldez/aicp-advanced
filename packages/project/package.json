@@ -1,0 +1,32 @@
+{
+  "name": "@aicp/project",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0",
+    "chokidar": "^3.6.0",
+    "glob": "^10.3.10",
+    "minimatch": "^10.2.5",
+    "sqlite-vec": "^0.1.9"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.19.41",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "aicp",
+    "project",
+    "code-indexing",
+    "vector-search"
+  ],
+  "author": "Daniel Valdez",
+  "license": "MIT"
+}

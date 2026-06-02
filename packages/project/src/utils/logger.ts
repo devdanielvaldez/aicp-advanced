@@ -5,4 +5,5 @@ export const logger = {
   success: (msg: string) => console.log(chalk.green('✓') + ' ' + msg),
   error: (msg: string) => console.log(chalk.red('✗') + ' ' + msg),
   warn: (msg: string) => console.log(chalk.yellow('⚠') + ' ' + msg),
+  progress: (msg: string) => console.log(chalk.gray('→') + ' ' + msg),
 };
