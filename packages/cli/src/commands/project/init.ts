@@ -1,10 +1,10 @@
 import input from '@inquirer/input';
-import { confirm } from '@inquirer/prompts';
+import { checkbox } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { ProjectManager, ProjectScanner } from '@aicp/project';
 import { OllamaClient } from '../../ollama/client.js';
-import { createPool, updatePool, getPool, deletePool } from '../../pools/manager.js';
+import { createPool, updatePool, deletePool } from '../../pools/manager.js';
 import { logger } from '../../utils/logger.js';
 import path from 'path';
 
@@ -32,15 +32,38 @@ export async function initProjectCommand() {
     return;
   }
 
-  const poolName = `proj-${name}`;
-  const poolDescription = `Expert pool for project "${name}" – understands this codebase.`;
-  const models = await new OllamaClient().listLocalModels();
-  if (models.length === 0) {
+  const installedModels = await ollama.listLocalModels();
+  if (installedModels.length === 0) {
     logger.error('No models installed. Please `ollama pull` at least one model.');
     return;
   }
 
-  const selectedModels = models.map(m => m.name);
+  const candidateModels = installedModels.filter(m => 
+    !m.name.toLowerCase().includes('embed') && 
+    !m.name.toLowerCase().includes('nomic')
+  );
+
+  if (candidateModels.length === 0) {
+    logger.error('No chat models found. Please pull a model like `ollama pull llama3.2:1b`.');
+    return;
+  }
+
+  const selectedModels = await checkbox({
+    message: 'Select models to include in this project pool:',
+    choices: candidateModels.map(m => ({
+      name: `${m.name} (${m.details?.parameter_size || '?'})`,
+      value: m.name,
+    })),
+    pageSize: 10,
+  });
+
+  if (selectedModels.length === 0) {
+    logger.error('You must select at least one model.');
+    return;
+  }
+
+  const poolName = `proj-${name}`;
+  const poolDescription = `Expert pool for project "${name}" – understands this codebase.`;
   logger.info(`Creating pool "${poolName}" with models: ${selectedModels.join(', ')}`);
 
   let pool;
@@ -75,6 +98,7 @@ export async function initProjectCommand() {
 
   logger.success(`Project "${name}" initialized.`);
   console.log(chalk.gray(`\n  Pool: ${pool.name}`));
+  console.log(chalk.gray(`  Models: ${selectedModels.join(', ')}`));
   console.log(chalk.gray(`  Project path: ${project.rootPath}`));
   console.log(chalk.gray(`  Use "aicp project chat ${name}" to start coding with context.\n`));
 }
